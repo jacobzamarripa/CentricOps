@@ -262,11 +262,11 @@
 
   <div class="dock">
     <div class="dock-item active" onclick="switchPane('pane-apps', this)"><i class="bi bi-calendar-event"></i></div>
-    <div class="dock-item" onclick="switchPane('pane-tool', this)"><i class="bi bi-qr-code-scan"></i></div>
     <div class="dock-item" onclick="switchPane('pane-tracker', this)"><i class="bi bi-clipboard-check"></i></div>
+    <div class="dock-item" onclick="switchPane('pane-tool', this)"><i class="bi bi-qr-code-scan"></i></div>
     <div class="dock-item" onclick="switchPane('pane-history', this)"><i class="bi bi-clock-history"></i></div>
-    <div class="dock-item" onclick="switchPane('pane-comm', this)"><i class="bi bi-building"></i></div>
     <div class="dock-item" onclick="switchPane('pane-eod', this)"><i class="bi bi-send"></i></div>
+    <div class="dock-item" onclick="switchPane('pane-comm', this)"><i class="bi bi-building"></i></div>
   </div>
 
   <script>
@@ -293,7 +293,7 @@
 
     // --- SWIPE GESTURES ---
     var touchstartX = 0; var touchendX = 0;
-    var panesOrder = ['pane-apps', 'pane-tool', 'pane-tracker', 'pane-history', 'pane-comm', 'pane-eod'];
+    var panesOrder = ['pane-apps', 'pane-tracker', 'pane-tool', 'pane-history', 'pane-eod', 'pane-comm'];
     document.addEventListener('touchstart', function(e) { touchstartX = e.changedTouches[0].screenX; }, {passive: true});
     document.addEventListener('touchend', function(e) { touchendX = e.changedTouches[0].screenX; handleSwipe(); }, {passive: true});
     function handleSwipe() {
@@ -402,7 +402,7 @@
 
     function reloadHistoryItem(index) {
       if (index < 0 || !APP_DATA.history[index]) return; var item = APP_DATA.history[index];
-      if(window.innerWidth <= 1024) switchPane('pane-tool', document.querySelectorAll('.dock-item')[1]);
+      if(window.innerWidth <= 1024) switchPane('pane-tool', document.querySelector('.dock-item[onclick*="pane-tool"]'));
       document.getElementById('mkt').value = item.mkt; document.getElementById('typ').value = item.typ; filterComms(); 
       setTimeout(function() { document.getElementById('comm').value = item.comm; document.getElementById('addr').value = item.addr; document.getElementById('unit').value = ""; calculateProvisioning(true); }, 150);
       loadActiveJob(item.addr, item.comm); 
@@ -412,7 +412,7 @@
       document.getElementById('addr').value = addr; document.getElementById('unit').value = "";
       document.getElementById('trackAddr').innerText = addr;
       document.getElementById('trackComm').innerText = commName || "Select Community in Provisioning";
-      if(window.innerWidth <= 1024) switchPane('pane-tool', document.querySelectorAll('.dock-item')[1]);
+      if(window.innerWidth <= 1024) switchPane('pane-tool', document.querySelector('.dock-item[onclick*="pane-tool"]'));
     }
 
     // --- WORK TRACKER & EOD ---
