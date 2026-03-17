@@ -23,7 +23,7 @@ function setupDatabase() {
   const localSheets = [
     { name: '2_Appointments', headers: ['ID', 'Customer Name', 'Address', 'Time', 'Status'] },
     { name: '3_History', headers: ['Timestamp', 'Tech ID', 'Account ID', 'Address', 'Community', 'Market', 'Type'] },
-    { name: '4_Work_Tracker', headers: ['Timestamp', 'Tech ID', 'Community', 'Address', 'Job Type', 'Splice Count', 'Notes', 'Form URL'] }
+    { name: '4_Work_Tracker', headers: ['Timestamp', 'Tech ID', 'Community', 'Address', 'Job Type', 'Light Level', 'Distance', 'Tube/Splitter Color', 'Port/Fiber Color', 'Splice Count', 'Notes', 'Form URL'] }
   ];
 
   localSheets.forEach(s => {
@@ -98,6 +98,18 @@ function logWorkTracker(jobData, user) {
   try {
     const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('4_Work_Tracker');
     
+    // Combine new data into notes for the Form URL just in case there are no entry IDs mapped
+    let combinedNotes = jobData.notes;
+    let extraInfo = [];
+    if (jobData.light) extraInfo.push(`Light: ${jobData.light}`);
+    if (jobData.distance) extraInfo.push(`Dist: ${jobData.distance}`);
+    if (jobData.tubeColor) extraInfo.push(`Tube: ${jobData.tubeColor}`);
+    if (jobData.portColor) extraInfo.push(`Port: ${jobData.portColor}`);
+    
+    if (extraInfo.length > 0) {
+      combinedNotes = extraInfo.join(" | ") + "\n\n" + combinedNotes;
+    }
+
     // Generate the pre-filled Form URL
     const baseURL = `https://docs.google.com/forms/d/${FORM_ID}/viewform?usp=pp_url`;
     const params = [
@@ -107,11 +119,11 @@ function logWorkTracker(jobData, user) {
       `entry.1706249198=${encodeURIComponent(jobData.addr)}`, // Address
       `entry.814469077=${encodeURIComponent(jobData.type)}`, // Job Type
       `entry.1164864873=${encodeURIComponent(jobData.splice)}`, // Splice Count
-      `entry.712680230=${encodeURIComponent(jobData.notes)}` // Notes
+      `entry.712680230=${encodeURIComponent(combinedNotes)}` // Notes
     ];
     const formUrl = baseURL + "&" + params.filter(Boolean).join("&");
 
-    if(sheet) sheet.appendRow([new Date(), user, jobData.comm, jobData.addr, jobData.type, jobData.splice, jobData.notes, formUrl]);
+    if(sheet) sheet.appendRow([new Date(), user, jobData.comm, jobData.addr, jobData.type, jobData.light, jobData.distance, jobData.tubeColor, jobData.portColor, jobData.splice, jobData.notes, formUrl]);
     
     return { success: true, url: formUrl };
   } catch(e) { return { error: e.message }; }

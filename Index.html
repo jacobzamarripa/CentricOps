@@ -174,8 +174,30 @@
       <span class="micro-label">Job Type</span>
       <select id="trackJobType" class="form-select mb-3"></select>
       
+      <div class="row g-2 mb-3">
+        <div class="col-6">
+          <span class="micro-label">Light Level</span>
+          <input type="text" inputmode="decimal" id="trackLight" class="form-control" placeholder="e.g. -18.5">
+        </div>
+        <div class="col-6">
+          <span class="micro-label">Distance Jetted</span>
+          <input type="number" inputmode="numeric" pattern="[0-9]*" id="trackDistance" class="form-control" placeholder="e.g. 150">
+        </div>
+      </div>
+
+      <div class="row g-2 mb-3">
+        <div class="col-6">
+          <span class="micro-label">Tube / Splitter</span>
+          <select id="trackTubeColor" class="form-select"></select>
+        </div>
+        <div class="col-6">
+          <span class="micro-label">Port # / Fiber</span>
+          <select id="trackPortColor" class="form-select"></select>
+        </div>
+      </div>
+      
       <span class="micro-label">Splice Count (s#)</span>
-      <input type="number" id="trackSplice" class="form-control mb-3" placeholder="e.g. 2">
+      <input type="number" inputmode="numeric" pattern="[0-9]*" id="trackSplice" class="form-control mb-3" placeholder="e.g. 2">
       
       <span class="micro-label">Details / Notes</span>
       <textarea id="trackNotes" class="form-control mb-3" rows="2" placeholder="Verified at NID..."></textarea>
@@ -308,6 +330,23 @@
           jtSelect.innerHTML = '';
           data.jobTypes.forEach(function(jt) { jtSelect.innerHTML += '<option value="' + jt + '">' + jt + '</option>'; });
           
+          var colors = ["Blue", "Orange", "Green", "Brown", "Slate", "White", "Red", "Black", "Yellow", "Violet", "Rose", "Aqua"];
+          var tubeSel = document.getElementById('trackTubeColor');
+          var portSel = document.getElementById('trackPortColor');
+          
+          if(tubeSel) {
+            tubeSel.innerHTML = '<option value="">-- Color --</option>';
+            colors.forEach(function(c) { tubeSel.innerHTML += '<option value="' + c + '">' + c + '</option>'; });
+          }
+          
+          if(portSel) {
+            portSel.innerHTML = '<option value="">-- Port/Color --</option><optgroup label="Colors">';
+            colors.forEach(function(c) { portSel.innerHTML += '<option value="' + c + '">' + c + '</option>'; });
+            portSel.innerHTML += '</optgroup><optgroup label="Ports (1-96)">';
+            for(var i=1; i<=96; i++) { portSel.innerHTML += '<option value="' + i + '">' + i + '</option>'; }
+            portSel.innerHTML += '</optgroup>';
+          }
+
           var pSelect = document.getElementById('eodPartner');
           pSelect.innerHTML = '<option value="">-- None --</option>';
           data.roster.forEach(function(emp) { pSelect.innerHTML += '<option value="' + emp.name + '">' + emp.name + '</option>'; });
@@ -379,7 +418,17 @@
     // --- WORK TRACKER & EOD ---
     function submitWorkTracker() {
       var btn = document.getElementById('btnTrack');
-      var jobData = { addr: document.getElementById('trackAddr').innerText, comm: document.getElementById('comm').value, type: document.getElementById('trackJobType').value, splice: document.getElementById('trackSplice').value || "0", notes: document.getElementById('trackNotes').value || "Completed." };
+      var jobData = { 
+        addr: document.getElementById('trackAddr').innerText, 
+        comm: document.getElementById('comm').value, 
+        type: document.getElementById('trackJobType').value,
+        light: document.getElementById('trackLight').value || "",
+        distance: document.getElementById('trackDistance').value || "",
+        tubeColor: document.getElementById('trackTubeColor').value || "",
+        portColor: document.getElementById('trackPortColor').value || "",
+        splice: document.getElementById('trackSplice').value || "0", 
+        notes: document.getElementById('trackNotes').value || "Completed." 
+      };
       if(!jobData.comm || jobData.comm === "") return alert("Please select the Community in the Provisioning tab first.");
       btn.innerText = "Logging...";
       google.script.run.withSuccessHandler(function(res){
