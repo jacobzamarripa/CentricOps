@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <style>
+    /* --- EXECUTIVE GLASS DESIGN SYSTEM --- */
+    :root {
+      --bg-app: #f1f5f9; --bg-glass: rgba(255, 255, 255, 0.72); --border-glass: #e2e8f0;
+      --text-main: #0f172a; --text-muted: #64748b; --shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.05);
+      --shadow-hover: 0 15px 35px rgba(15, 23, 42, 0.1); --accent-active: #3b82f6;
+    }
+
+    body { background: var(--bg-app); height: 100vh; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--text-main); touch-action: pan-y; }
+    .micro-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 2px; display: block; }
+    h4 { font-weight: 800; letter-spacing: -0.5px; color: var(--text-main); }
+    .data-font { font-family: monospace; font-weight: 700; letter-spacing: -0.5px; font-size: 13px; margin-bottom: 2px !important;}
+
+    ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+    /* HEADER & CALENDAR WIDGET */
+    .app-header { position: fixed; top: 0; left: 0; right: 0; z-index: 1001; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; background: linear-gradient(to bottom, rgba(30,60,114,0.95), rgba(30,60,114,0)); color: white; text-shadow: 0 2px 5px rgba(0,0,0,0.3); pointer-events: none; }
+    .app-header > * { pointer-events: auto; }
+    .header-title { font-weight: 900; font-size: 1.2rem; letter-spacing: -0.5px; line-height: 1.1;}
+    .header-date { font-weight: 700; font-size: 0.75rem; opacity: 0.8; letter-spacing: 0.5px; text-transform: uppercase;}
+    
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+    .cal-day { padding: 6px 0; border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 13px; font-weight: 600; color: var(--text-main); }
+    .cal-day:hover { background: rgba(0,0,0,0.05); }
+    .cal-today { background: var(--accent-active); color: white !important; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4); }
+    .cal-header-row div { font-size: 10px; font-weight: 800; color: var(--text-muted); }
+
+    /* VIEWPORT & PANES */
+    .app-viewport { height: 100vh; padding: 85px 20px 20px 20px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; align-content: flex-start; }
+    .glass-pane { background: var(--bg-glass); backdrop-filter: blur(24px); border: 1px solid var(--border-glass); border-radius: 24px; padding: 24px; box-shadow: var(--shadow-soft); animation: springIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); flex: 1 1 320px; max-width: 420px; height: fit-content; max-height: calc(100vh - 100px); overflow-y: auto; position: relative;}
+    .dock { display: none; }
+
+    /* MOBILE OVERRIDES */
+    @media (max-width: 1024px) {
+      .app-viewport { display: block; height: 100vh; padding: 80px 15px 100px 15px; } 
+      .glass-pane { display: none; max-width: 100%; max-height: none; margin-bottom: 0; }
+      .glass-pane.active-pane { display: block; }
+      /* 6 Item Scrollable Dock */
+      .dock { position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); width: 95%; max-width: 400px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(24px); border-radius: 30px; padding: 10px 15px; display: flex; justify-content: space-between; overflow-x: auto; border: 1px solid var(--border-glass); z-index: 1000; box-shadow: var(--shadow-hover); scrollbar-width: none; }
+      .dock::-webkit-scrollbar { display: none; }
+      
+      /* DENSIFICATION FOR HISTORY & COMM */
+      .dense-card { padding: 10px 12px !important; margin-bottom: 8px !important; border-radius: 12px !important;}
+      .dense-card .fs-6 { font-size: 0.85rem !important; }
+      .dense-card .fw-bold { font-size: 0.9rem !important; }
+      .dense-card .micro-label { font-size: 8px !important; margin-bottom: 1px !important; }
+      .dense-card .status-pill { padding: 2px 8px !important; font-size: 9px !important; }
+      .dense-card .btn-sm { width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+    }
+
+    .dock-item { color: var(--text-muted); font-size: 1.3rem; cursor: pointer; transition: all 0.3s; padding: 5px 12px; border-radius: 15px; flex-shrink: 0; }
+    .dock-item:hover, .dock-item.active { color: white; background: var(--accent-active); transform: translateY(-4px); box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); }
+
+    .poly-card { background: rgba(255, 255, 255, 0.65); border-radius: 16px; padding: 16px; margin-bottom: 12px; border: 1px solid var(--border-glass); transition: all 0.2s; cursor: pointer; position: relative; }
+    .poly-card:hover { background: #ffffff; transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+
+    .form-control, .form-select { background: #ffffff !important; border: 1px solid var(--border-glass) !important; border-radius: 12px; color: var(--text-main) !important; padding: 8px 12px; font-weight: 500; font-size: 0.95rem; }
+    .btn-magic { background: linear-gradient(90deg, #4285F4, #8E24AA, #D81B60, #F4B400, #4285F4); background-size: 200% 200%; animation: shimmer 4s linear infinite; color: white; border: none; font-weight: 800; }
+    
+    .section-banner { display: flex; justify-content: space-between; align-items: center; color: white; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 11px; text-transform: uppercase; margin: 12px 0 8px 0; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: 0.2s; }
+    .section-banner:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .section-content { display: none; margin-bottom: 5px; } 
+    
+    .qr-item { display: flex; align-items: center; justify-content: space-between; background: #fff; border-radius: 12px; padding: 8px 12px; margin-bottom: 6px; border: 1px solid var(--border-glass); box-shadow: 0 2px 5px rgba(0,0,0,0.02);}
+    .qr-img { width: 55px; height: 55px; border-radius: 6px; border: 1px solid #eee; }
+    .btn-copy-dense { font-size: 9px; font-weight: 800; padding: 2px 8px; border-radius: 4px; margin-top: 2px;}
+
+    .status-pill { border-radius: 20px; padding: 4px 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; color: white; }
+    .filter-pill { cursor: pointer; border: 1px solid var(--border-glass); background: #ffffff; color: var(--text-muted); border-radius: 20px; padding: 4px 16px; font-size: 11px; font-weight: 800; }
+    .filter-pill.active { background: var(--text-main); color: #ffffff; border-color: var(--text-main); }
+
+    .loader-bg { background: var(--bg-app); position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.5s; }
+    .progress-track { width: 250px; height: 6px; background: var(--border-glass); border-radius: 10px; overflow: hidden; margin-bottom: 15px; }
+    .progress-fill { width: 0%; height: 100%; background: var(--accent-active); transition: width 0.3s ease; }
+    
+    .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px); z-index: 10000; display: none; justify-content: center; align-items: center; padding: 20px; opacity: 0; transition: opacity 0.3s; }
+    .modal-glass { background: rgba(255, 255, 255, 0.95); border: 1px solid #ffffff; border-radius: 24px; padding: 24px; width: 100%; max-width: 400px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); transform: scale(0.95); transition: transform 0.3s; }
+    .modal-overlay.show { display: flex; opacity: 1; }
+    .modal-overlay.show .modal-glass { transform: scale(1); }
+
+    @keyframes springIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes shimmer { 0% { background-position: 0% 50%; } 100% { background-position: -200% 50%; } }
+  </style>
+</head>
+<body>
+
+  <div id="loader" class="loader-bg">
+    <div class="spinner-border text-primary mb-4" style="width: 2.5rem; height: 2.5rem; border-width: 0.25em;"></div>
+    <div class="progress-track"><div id="loaderProgress" class="progress-fill"></div></div>
+    <div id="loaderText" style="font-family: monospace; font-size: 12px; color: var(--text-muted);">Connecting to Master DB...</div>
+  </div>
+
+  <div id="modalOverlay" class="modal-overlay"><div class="modal-glass" id="modalContent"></div></div>
+  <div id="fuzzyModalOverlay" class="modal-overlay">
+    <div class="modal-glass text-center">
+      <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 3rem;"></i>
+      <h5 class="fw-bold mt-2 mb-3">Similar Communities Found</h5>
+      <p class="small text-muted">The community you are adding closely matches existing records. Please review them to avoid creating a duplicate.</p>
+      <div id="fuzzyMatchesList" class="text-start mb-4 overflow-auto" style="max-height: 150px;"></div>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary w-50 rounded-pill fw-bold" onclick="closeFuzzyModal()">Cancel Add</button>
+        <button class="btn btn-warning w-50 rounded-pill fw-bold" onclick="confirmSaveComm()">Add Anyway</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-header">
+    <div class="d-flex flex-column">
+      <div class="header-title">Centric Ops</div>
+      <div class="header-date" id="headerDateDisplay"></div>
+    </div>
+    <button class="btn btn-light rounded-circle shadow-sm" style="width:40px; height:40px; padding:0; display:flex; justify-content:center; align-items:center;" onclick="toggleCalendar()"><i class="bi bi-calendar3 text-primary fs-5"></i></button>
+  </div>
+
+  <div id="calendarWidget" class="poly-card glass-pane" style="display:none; position:fixed; top:75px; right:20px; z-index:1002; width:280px; padding:15px; flex:none; animation: springIn 0.3s;">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <button class="btn btn-sm btn-light rounded-circle shadow-sm px-2" onclick="changeMonth(-1)"><i class="bi bi-chevron-left text-muted"></i></button>
+      <div class="fw-bold" id="calMonthYear"></div>
+      <button class="btn btn-sm btn-light rounded-circle shadow-sm px-2" onclick="changeMonth(1)"><i class="bi bi-chevron-right text-muted"></i></button>
+    </div>
+    <div class="calendar-grid cal-header-row mb-2"><div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div></div>
+    <div class="calendar-grid" id="calDays"></div>
+  </div>
+
+  <div class="app-viewport" id="mainViewport">
+    
+    <div id="pane-apps" class="glass-pane active-pane">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0"><i class="bi bi-calendar2-check me-2"></i>Schedule</h4>
+        <div id="displayTechId" class="badge bg-light text-dark border shadow-sm"></div>
+      </div>
+      <div id="apptList"></div>
+      <button class="btn btn-outline-secondary w-100 rounded-pill mt-2 fw-bold" onclick="openApptModal()">+ Add Task</button>
+      
+      <div class="text-center opacity-25 mt-5">
+        <span class="micro-label" style="font-size:8px;">Crafted by</span>
+        <div class="fw-bold" style="font-size:0.75rem; letter-spacing:1px; text-transform:uppercase;">Jacob Zamarripa</div>
+      </div>
+    </div>
+
+    <div id="pane-tool" class="glass-pane">
+      <h4 class="mb-3"><i class="bi bi-cpu me-2"></i>Provisioning</h4>
+      <div class="row g-2 mb-2">
+        <div class="col-6"><span class="micro-label">Market</span><select id="mkt" class="form-select" onchange="filterComms()"></select></div>
+        <div class="col-6"><span class="micro-label">Type</span><select id="typ" class="form-select" onchange="filterComms()"></select></div>
+      </div>
+      <span class="micro-label">Community</span><select id="comm" class="form-select mb-2" disabled></select>
+      <span class="micro-label">Street Address</span><input type="text" id="addr" class="form-control mb-2" placeholder="123 Main St">
+      <div id="unitContainer" style="display:none;"><span class="micro-label text-primary">Apt / Unit #</span><input type="text" id="unit" class="form-control mb-3"></div>
+      
+      <button onclick="calculateProvisioning()" id="btnGen" class="btn btn-magic w-100 rounded-pill py-2 mt-2">Generate QRs</button>
+      
+      <div id="qrResults" style="display:none;" class="mt-3 border-top pt-2">
+        <div id="errorBox" class="alert alert-danger fw-bold small text-center" style="display:none;"></div>
+        <div id="successBox" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div id="pane-tracker" class="glass-pane">
+      <h4 class="mb-3"><i class="bi bi-clipboard-check me-2"></i>Work Tracker</h4>
+      <p class="small text-muted mb-3">Log your completed work for the active address.</p>
+      
+      <div class="poly-card p-3 mb-3 bg-light">
+        <span class="micro-label">Current Job</span>
+        <div class="fw-bold fs-6 text-primary" id="trackAddr">Select an address from Schedule</div>
+        <div class="small text-muted" id="trackComm"></div>
+      </div>
+
+      <span class="micro-label">Job Type</span>
+      <select id="trackJobType" class="form-select mb-3"></select>
+      
+      <span class="micro-label">Splice Count (s#)</span>
+      <input type="number" id="trackSplice" class="form-control mb-3" placeholder="e.g. 2">
+      
+      <span class="micro-label">Details / Notes</span>
+      <textarea id="trackNotes" class="form-control mb-3" rows="2" placeholder="Verified at NID..."></textarea>
+      
+      <button onclick="submitWorkTracker()" id="btnTrack" class="btn btn-primary w-100 rounded-pill py-2 fw-bold">Log Job</button>
+      
+      <div id="trackResult" style="display:none;" class="mt-3 text-center">
+        <div class="alert alert-success small fw-bold mb-2"><i class="bi bi-check-circle-fill me-1"></i> Job Logged Successfully</div>
+        <a id="trackFormLink" href="#" target="_blank" class="btn btn-outline-success btn-sm rounded-pill w-100 fw-bold">Open Pre-filled Google Form</a>
+      </div>
+    </div>
+
+    <div id="pane-history" class="glass-pane">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h4 class="mb-0"><i class="bi bi-clock-history me-2"></i>History</h4>
+        <select id="histFilter" class="form-select form-select-sm w-auto fw-bold text-primary border-primary" onchange="renderHistory()" style="padding: 4px 25px 4px 10px;">
+          <option value="mine">My Scans</option>
+          <option value="all">All Scans</option>
+        </select>
+      </div>
+      <div class="micro-label mb-3 text-primary"><i class="bi bi-info-circle me-1"></i>Tap to instantly reload codes</div>
+      <div id="historyItems"></div>
+    </div>
+
+    <div id="pane-comm" class="glass-pane">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0"><i class="bi bi-building me-2"></i>Communities</h4>
+        <button class="btn btn-dark rounded-circle" style="width:38px;height:38px;padding:0;" onclick="openCommModal()"><i class="bi bi-plus"></i></button>
+      </div>
+      <div class="d-flex gap-2 mb-4 overflow-auto pb-1" id="commFilters">
+        <button class="filter-pill active" onclick="applyCommFilter('All', this)">All</button>
+        <button class="filter-pill" onclick="applyCommFilter('SFU', this)">SFU</button>
+        <button class="filter-pill" onclick="applyCommFilter('MDU', this)">MDU</button>
+        <button class="filter-pill" onclick="applyCommFilter('TH', this)">TH</button>
+      </div>
+      <input type="text" id="commSearch" class="form-control mb-4" placeholder="Search communities..." onkeyup="applyCommFilter(currentCommFilter)">
+      <div id="commCards"></div>
+    </div>
+
+    <div id="pane-eod" class="glass-pane">
+      <h4 class="mb-4"><i class="bi bi-send-check me-2"></i>EOD Report</h4>
+      
+      <span class="micro-label">Partner Name (Optional)</span>
+      <select id="eodPartner" class="form-select mb-3"><option value="">-- None --</option></select>
+      
+      <div class="row g-2 mb-3">
+        <div class="col-6"><span class="micro-label">My Hours</span><input type="number" id="eodMyHours" class="form-control" placeholder="e.g. 8"></div>
+        <div class="col-6"><span class="micro-label">Partner Hours</span><input type="number" id="eodPartnerHours" class="form-control" placeholder="e.g. 8"></div>
+      </div>
+      
+      <span class="micro-label">Total Mileage</span>
+      <input type="number" id="eodMileage" class="form-control mb-4" placeholder="e.g. 45">
+
+      <span class="micro-label">Send Report To</span>
+      <input type="email" id="eodEmail" class="form-control mb-4" placeholder="manager@centricfiber.com">
+      
+      <button onclick="sendEOD()" id="btnEod" class="btn btn-dark w-100 rounded-pill py-2 fw-bold">Send EOD Report</button>
+      <div id="eodSuccess" class="alert alert-success mt-3 small fw-bold text-center" style="display:none;">Report Sent!</div>
+    </div>
+
+  </div>
+
+  <div class="dock">
+    <div class="dock-item active" onclick="switchPane('pane-apps', this)"><i class="bi bi-calendar-event"></i></div>
+    <div class="dock-item" onclick="switchPane('pane-tool', this)"><i class="bi bi-qr-code-scan"></i></div>
+    <div class="dock-item" onclick="switchPane('pane-tracker', this)"><i class="bi bi-clipboard-check"></i></div>
+    <div class="dock-item" onclick="switchPane('pane-history', this)"><i class="bi bi-clock-history"></i></div>
+    <div class="dock-item" onclick="switchPane('pane-comm', this)"><i class="bi bi-building"></i></div>
+    <div class="dock-item" onclick="switchPane('pane-eod', this)"><i class="bi bi-send"></i></div>
+  </div>
+
+  <script>
+    var APP_DATA = {};
+    var currentCommFilter = 'All';
+    var loadingInterval;
+    var pendingCommSave = null;
+
+    var MARKET_COLORS = { "Austin": "#f59e0b", "Dallas/Fortworth": "#22c55e", "Florida": "#06b6d4", "Houston": "#f97316", "San Antonio E/NE": "#3b82f6", "San Antonio S/SW": "#4f46e5" };
+    function getMktColor(mktName) { return MARKET_COLORS[mktName] || "#64748b"; }
+
+    // --- CALENDAR LOGIC ---
+    var currCalDate = new Date();
+    function initCalendar() { document.getElementById('headerDateDisplay').innerText = new Date().toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric'}); renderCalendar(currCalDate); }
+    function toggleCalendar() { var cal = document.getElementById('calendarWidget'); cal.style.display = cal.style.display === 'none' ? 'block' : 'none'; }
+    function changeMonth(dir) { currCalDate.setMonth(currCalDate.getMonth() + dir); renderCalendar(currCalDate); }
+    function renderCalendar(date) {
+      document.getElementById('calMonthYear').innerText = date.toLocaleDateString('en-US', {month:'long', year:'numeric'});
+      var firstDay = new Date(date.getFullYear(), date.getMonth(), 1).getDay(); var daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate(); var today = new Date(); var html = '';
+      for(var i=0; i<firstDay; i++) html += '<div></div>';
+      for(var i=1; i<=daysInMonth; i++) { var isToday = (i === today.getDate() && date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear()); var cls = isToday ? 'cal-day cal-today' : 'cal-day'; html += '<div class="' + cls + '">' + i + '</div>'; }
+      document.getElementById('calDays').innerHTML = html;
+    }
+
+    // --- SWIPE GESTURES ---
+    var touchstartX = 0; var touchendX = 0;
+    var panesOrder = ['pane-apps', 'pane-tool', 'pane-tracker', 'pane-history', 'pane-comm', 'pane-eod'];
+    document.addEventListener('touchstart', function(e) { touchstartX = e.changedTouches[0].screenX; }, {passive: true});
+    document.addEventListener('touchend', function(e) { touchendX = e.changedTouches[0].screenX; handleSwipe(); }, {passive: true});
+    function handleSwipe() {
+      if (window.innerWidth > 1024) return; 
+      var diff = touchstartX - touchendX; if (Math.abs(diff) < 60) return; 
+      var currentIndex = 0;
+      for(var i=0; i<panesOrder.length; i++) { if(document.getElementById(panesOrder[i]).classList.contains('active-pane')) { currentIndex = i; break; } }
+      if (diff > 0 && currentIndex < panesOrder.length - 1) { switchPane(panesOrder[currentIndex + 1], document.querySelectorAll('.dock-item')[currentIndex + 1]); } 
+      else if (diff < 0 && currentIndex > 0) { switchPane(panesOrder[currentIndex - 1], document.querySelectorAll('.dock-item')[currentIndex - 1]); }
+    }
+
+    window.onload = function() {
+      initCalendar();
+      var texts = ["Connecting to Master DB...", "Verifying Credentials...", "Parsing Operations Roster...", "Mounting Executive Glass UI..."];
+      var progress = 0; var textIdx = 0;
+      loadingInterval = setInterval(function() {
+        progress += Math.random() * 15; if(progress > 85) progress = 85; 
+        document.getElementById('loaderProgress').style.width = progress + '%';
+        if (Math.random() > 0.5) { document.getElementById('loaderText').innerText = texts[textIdx % texts.length]; textIdx++; }
+      }, 400);
+
+      google.script.run
+        .withSuccessHandler(function(data) {
+          clearInterval(loadingInterval);
+          document.getElementById('loaderProgress').style.width = '100%'; document.getElementById('loaderText').innerText = "System Ready.";
+          setTimeout(function() { document.getElementById('loader').style.opacity = '0'; setTimeout(function() { document.getElementById('loader').style.display = 'none'; checkIdentity(); }, 500); }, 400);
+
+          APP_DATA = data;
+          renderAppointments(); renderHistory(); renderCommunities(data.communities);
+          fillDropdown('mkt', data.markets, "Market"); fillDropdown('typ', data.types, "Type");
+          
+          // Populate Form Data
+          var jtSelect = document.getElementById('trackJobType');
+          jtSelect.innerHTML = '';
+          data.jobTypes.forEach(function(jt) { jtSelect.innerHTML += '<option value="' + jt + '">' + jt + '</option>'; });
+          
+          var pSelect = document.getElementById('eodPartner');
+          pSelect.innerHTML = '<option value="">-- None --</option>';
+          data.roster.forEach(function(emp) { pSelect.innerHTML += '<option value="' + emp.name + '">' + emp.name + '</option>'; });
+
+        })
+        .withFailureHandler(function(err) { document.getElementById('loaderText').innerHTML = '<span class="text-danger fw-bold">' + err.message + '</span>'; clearInterval(loadingInterval); }).getAppData();
+    };
+
+    function checkIdentity() {
+      var techId = localStorage.getItem('centric_tech_id');
+      if (!techId) {
+        var html = '<h5 class="fw-bold mb-3 text-primary">Welcome to Field Ops</h5><p class="small text-muted mb-4">Please verify your identity against the Master Roster.</p><select id="inputTechId" class="form-select mb-4"><option value="">-- Employee Roster --</option>';
+        APP_DATA.roster.forEach(function(emp) { html += '<option value="' + (emp.short ? emp.short : emp.name) + '">' + emp.name + ' (' + emp.role + ')</option>'; });
+        html += '</select><button class="btn btn-primary w-100 rounded-pill fw-bold" onclick="saveIdentity()">Save Identity</button>';
+        document.getElementById('modalContent').innerHTML = html; document.getElementById('modalOverlay').classList.add('show');
+      } else { document.getElementById('displayTechId').innerText = techId; }
+    }
+    function saveIdentity() { var val = document.getElementById('inputTechId').value; if(!val) return alert("Please select your name."); localStorage.setItem('centric_tech_id', val); document.getElementById('displayTechId').innerText = val; closeModal(); renderHistory(); }
+    function getTechId() { return localStorage.getItem('centric_tech_id') || 'Unknown'; }
+    function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); }
+
+    function switchPane(id, el) {
+      if(window.innerWidth > 1024) return;
+      document.querySelectorAll('.glass-pane').forEach(function(p) { p.classList.remove('active-pane'); });
+      document.querySelectorAll('.dock-item').forEach(function(d) { d.classList.remove('active'); });
+      document.getElementById(id).classList.add('active-pane'); el.classList.add('active');
+      window.scrollTo(0,0);
+      // Ensure the active dock item is fully visible horizontally
+      el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+
+    function renderAppointments() {
+      var list = document.getElementById('apptList');
+      if (!APP_DATA.appointments.length) { list.innerHTML = '<div class="micro-label text-center mt-4">No appointments.</div>'; return; }
+      var html = '';
+      APP_DATA.appointments.forEach(function(a) {
+        html += '<div class="poly-card"><div style="position:absolute; right:12px; top:12px; cursor:pointer;" class="text-danger opacity-50" onclick="deleteAppt(\'' + a.id + '\')"><i class="bi bi-trash-fill"></i></div><div onclick="loadActiveJob(\'' + a.address + '\')"><div class="fw-bold pe-4">' + a.name + '</div><div class="micro-label" style="color:var(--accent-active);">' + a.time + '</div><div class="small text-muted">' + a.address + '</div></div></div>';
+      });
+      list.innerHTML = html;
+    }
+
+    function renderHistory() {
+      var container = document.getElementById('historyItems'); var histArray = APP_DATA.history || [];
+      if (document.getElementById('histFilter').value === 'mine') histArray = histArray.filter(function(h) { return h.user === getTechId(); });
+      if(!histArray || histArray.length === 0) { container.innerHTML = '<div class="micro-label text-center mt-4">No activity found.</div>'; return; }
+      var html = '';
+      histArray.forEach(function(h) {
+        var originalIndex = APP_DATA.history.findIndex(function(item) { return item.id === h.id && item.time === h.time; });
+        html += '<div class="poly-card dense-card" onclick="reloadHistoryItem(' + originalIndex + ')"><div class="d-flex justify-content-between mb-2"><span class="status-pill" style="background-color:' + getMktColor(h.mkt) + ';">' + h.mkt + '</span><span class="micro-label">' + h.time + '</span></div><div class="data-font fs-6">' + h.id + '</div><div class="small text-muted mt-1">' + h.addr + '</div></div>';
+      });
+      container.innerHTML = html;
+    }
+
+    function reloadHistoryItem(index) {
+      if (index < 0 || !APP_DATA.history[index]) return; var item = APP_DATA.history[index];
+      if(window.innerWidth <= 1024) switchPane('pane-tool', document.querySelectorAll('.dock-item')[1]);
+      document.getElementById('mkt').value = item.mkt; document.getElementById('typ').value = item.typ; filterComms(); 
+      setTimeout(function() { document.getElementById('comm').value = item.comm; document.getElementById('addr').value = item.addr; document.getElementById('unit').value = ""; calculateProvisioning(true); }, 150);
+      loadActiveJob(item.addr, item.comm); 
+    }
+
+    function loadActiveJob(addr, commName) {
+      document.getElementById('addr').value = addr; document.getElementById('unit').value = "";
+      document.getElementById('trackAddr').innerText = addr;
+      document.getElementById('trackComm').innerText = commName || "Select Community in Provisioning";
+      if(window.innerWidth <= 1024) switchPane('pane-tool', document.querySelectorAll('.dock-item')[1]);
+    }
+
+    // --- WORK TRACKER & EOD ---
+    function submitWorkTracker() {
+      var btn = document.getElementById('btnTrack');
+      var jobData = { addr: document.getElementById('trackAddr').innerText, comm: document.getElementById('comm').value, type: document.getElementById('trackJobType').value, splice: document.getElementById('trackSplice').value || "0", notes: document.getElementById('trackNotes').value || "Completed." };
+      if(!jobData.comm || jobData.comm === "") return alert("Please select the Community in the Provisioning tab first.");
+      btn.innerText = "Logging...";
+      google.script.run.withSuccessHandler(function(res){
+         btn.innerText = "Log Job";
+         if(res.error) return alert(res.error);
+         document.getElementById('trackFormLink').href = res.url;
+         document.getElementById('trackResult').style.display = 'block';
+      }).logWorkTracker(jobData, getTechId());
+    }
+
+    function sendEOD() {
+      var btn = document.getElementById('btnEod');
+      var eodData = { partner: document.getElementById('eodPartner').value, leadHours: document.getElementById('eodMyHours').value, partnerHours: document.getElementById('eodPartnerHours').value, mileage: document.getElementById('eodMileage').value, email: document.getElementById('eodEmail').value };
+      if(!eodData.leadHours || !eodData.mileage || !eodData.email) return alert("Hours, Mileage, and Email are required.");
+      btn.innerText = "Sending...";
+      google.script.run.withSuccessHandler(function(res){
+         btn.innerText = "Send EOD Report";
+         if(res.error) return alert("Failed: " + res.error);
+         document.getElementById('eodSuccess').style.display = 'block';
+         setTimeout(function(){ document.getElementById('eodSuccess').style.display = 'none'; }, 3000);
+      }).submitEOD(eodData, getTechId());
+    }
+
+    // --- SMART LOCATION ID & COMMUNITIES ---
+    function autoGenLocId() {
+      var isEdit = document.getElementById('modOldId').value !== "";
+      if (isEdit) return; 
+
+      var name = document.getElementById('modCommName').value.trim().toUpperCase();
+      var city = document.getElementById('modCommCity').value.trim().toUpperCase();
+      if (!name || !city) return;
+
+      var cityChars = city.replace(/[^A-Z]/g, '');
+      var cCode = "XXXX";
+      if (cityChars.length > 0) {
+        var firstLtr = cityChars.charAt(0);
+        var rest = cityChars.slice(1).replace(/[AEIOU]/g, '');
+        cCode = (firstLtr + rest).padEnd(4, 'X').substring(0, 4);
+      }
+
+      var words = name.split(/\s+/).filter(function(w) { return w.length > 0; });
+      var nCode = "XX";
+      if (words.length >= 2) {
+        nCode = words[0].charAt(0) + words[1].charAt(0);
+      } else if (words.length === 1 && words[0].length > 1) {
+        var w = words[0];
+        nCode = w.charAt(0) + w.replace(/[AEIOU]/g, '').charAt(1);
+        if(!nCode || nCode.length < 2) nCode = w.substring(0,2);
+      }
+      if (name.includes('6')) nCode = '6C'; 
+
+      document.getElementById('modCommLoc').value = cCode + "TX" + nCode;
+    }
+
+    function findSimilarCommunities(newName) {
+      var term = newName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      var matches = [];
+      if(term.length < 3) return matches;
+      Object.values(APP_DATA.communities).forEach(function(c) {
+        var existingName = c.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (existingName.includes(term) || term.includes(existingName)) { matches.push(c.name + ' (' + c.market + ')'); }
+      });
+      return matches;
+    }
+
+    function saveComm() {
+      var oldId = unescape(document.getElementById('modOldId').value);
+      var c = { name: document.getElementById('modCommName').value.trim(), market: document.getElementById('modCommMkt').value, type: document.getElementById('modCommTyp').value, locationId: document.getElementById('modCommLoc').value.toUpperCase(), city: document.getElementById('modCommCity').value, state: "TX", zip: document.getElementById('modCommZip').value, vlan: document.getElementById('modCommVlan').value };
+      if(!c.name || !c.market || !c.type) return alert("Name, Market, and Type required.");
+      
+      pendingCommSave = { c: c, oldId: oldId };
+
+      if (!oldId) {
+        var similarities = findSimilarCommunities(c.name);
+        if (similarities.length > 0) {
+           var listHtml = similarities.map(function(s){ return '<div class="poly-card p-2 mb-1 small fw-bold"><i class="bi bi-building me-2 text-muted"></i>' + s + '</div>'; }).join('');
+           document.getElementById('fuzzyMatchesList').innerHTML = listHtml;
+           document.getElementById('fuzzyModalOverlay').classList.add('show');
+           closeModal(); 
+           return;
+        }
+      }
+      confirmSaveComm(); 
+    }
+
+    function confirmSaveComm() {
+      closeFuzzyModal();
+      if (!pendingCommSave) return;
+      var c = pendingCommSave.c; var oldId = pendingCommSave.oldId;
+      
+      if(oldId && oldId !== c.name) delete APP_DATA.communities[oldId];
+      APP_DATA.communities[c.name] = c; applyCommFilter(currentCommFilter); closeModal(); 
+      google.script.run.saveComm(c, oldId, getTechId()); 
+      pendingCommSave = null;
+    }
+
+    function closeFuzzyModal() { document.getElementById('fuzzyModalOverlay').classList.remove('show'); pendingCommSave = null; }
+
+    function openCommModal(escName) { 
+      var isEdit = !!escName; 
+      var name = isEdit ? unescape(escName) : ""; 
+      var c = isEdit ? APP_DATA.communities[name] : { market: "", type: "", locationId: "", city: "", zip: "", vlan: "" }; 
+      
+      var mktOptions = '';
+      APP_DATA.markets.forEach(function(m) { mktOptions += '<option value="' + m + '" ' + (c.market === m ? 'selected' : '') + '>' + m + '</option>'; });
+      
+      var html = '<h5 class="fw-bold mb-3">' + (isEdit ? 'Edit Community' : 'Add Community') + '</h5><input type="hidden" id="modOldId" value="' + (isEdit ? escName : '') + '"><span class="micro-label">Name</span><input type="text" id="modCommName" class="form-control mb-2" value="' + name + '" oninput="autoGenLocId()">';
+      html += '<div class="row g-2 mb-2"><div class="col-6"><span class="micro-label">Market</span><select id="modCommMkt" class="form-select">' + mktOptions + '</select></div>';
+      html += '<div class="col-6"><span class="micro-label">Type</span><select id="modCommTyp" class="form-select"><option value="SFU" ' + (c.type==='SFU'?'selected':'') + '>SFU</option><option value="MDU" ' + (c.type==='MDU'?'selected':'') + '>MDU</option><option value="TH" ' + (c.type==='TH'?'selected':'') + '>TH</option></select></div></div>';
+      html += '<div class="row g-2 mb-2"><div class="col-6"><span class="micro-label">City</span><input type="text" id="modCommCity" class="form-control" value="' + (c.city||'') + '" oninput="autoGenLocId()"></div><div class="col-6"><span class="micro-label">Zip</span><input type="text" id="modCommZip" class="form-control" value="' + (c.zip||'') + '"></div></div>';
+      html += '<div class="row g-2 mb-4"><div class="col-6"><span class="micro-label">Location ID</span><input type="text" id="modCommLoc" class="form-control" value="' + c.locationId + '"></div><div class="col-6"><span class="micro-label">VLAN</span><input type="text" id="modCommVlan" class="form-control" value="' + (c.vlan||'2001') + '"></div></div>';
+      html += '<div class="d-flex gap-2"><button class="btn btn-outline-secondary w-50" onclick="closeModal()">Cancel</button><button class="btn btn-primary w-50" onclick="saveComm()">' + (isEdit ? 'Update' : 'Create') + '</button></div>'; 
+      document.getElementById('modalContent').innerHTML = html; document.getElementById('modalOverlay').classList.add('show'); 
+    }
+
+    function applyCommFilter(val, el) { currentCommFilter = val; if(el) { document.querySelectorAll('.filter-pill').forEach(function(b){ b.classList.remove('active'); }); el.classList.add('active'); } var term = document.getElementById('commSearch').value.toLowerCase(), filtered = []; Object.keys(APP_DATA.communities).forEach(function(k) { var c = APP_DATA.communities[k]; if ((c.name.toLowerCase().includes(term) || c.market.toLowerCase().includes(term)) && (val === 'All' || c.type.toUpperCase() === val)) filtered.push(c); }); renderCommunities(filtered); }
+    
+    function renderCommunities(arr) { 
+      var cBox = document.getElementById('commCards'); if (!arr) return; if (!Array.isArray(arr)) arr = Object.values(arr); var html = ''; 
+      arr.slice(0,25).forEach(function(c) { 
+        var icon = c.type === 'MDU' ? 'bi-building' : (c.type === 'TH' ? 'bi-houses' : 'bi-house'); var mColor = getMktColor(c.market);
+        // Delete button intentionally removed as requested
+        html += '<div class="poly-card dense-card d-flex justify-content-between align-items-center"><div><div class="fw-bold"><i class="bi ' + icon + ' me-2 text-muted"></i>' + c.name + '</div><div class="micro-label mt-2"><span class="status-pill me-2" style="background-color:' + mColor + ';">' + c.market + '</span>' + c.type + ' • ID: ' + (c.locationId||'N/A') + '</div></div><div><button class="btn btn-sm btn-light rounded-circle shadow-sm text-muted" onclick="openCommModal(\'' + escape(c.name) + '\')"><i class="bi bi-pencil"></i></button></div></div>'; 
+      }); 
+      cBox.innerHTML = arr.length ? html : '<div class="micro-label text-center mt-4">No communities found.</div>'; 
+    }
+
+    // --- PROVISIONING QR GENERATOR ---
+    function fillDropdown(id, list, label) { var s = document.getElementById(id); s.innerHTML = '<option value="">-- ' + label + ' --</option>'; list.forEach(function(item) { s.innerHTML += '<option value="' + item + '">' + item + '</option>'; }); }
+    function filterComms() {
+      var m = document.getElementById('mkt').value, t = document.getElementById('typ').value, cs = document.getElementById('comm');
+      document.getElementById('unitContainer').style.display = (t === 'MDU') ? 'block' : 'none';
+      if (m && t) { cs.disabled = false; var fNames = []; Object.keys(APP_DATA.communities).forEach(function(k) { if(APP_DATA.communities[k].market === m && APP_DATA.communities[k].type === t) fNames.push(k); }); fillDropdown('comm', fNames, "Select Community"); } 
+      else { cs.disabled = true; cs.innerHTML = '<option value="">-- Select Market & Type --</option>'; }
+    }
+
+    window.toggleSection = function(headerEl) { var content = headerEl.nextElementSibling; var icon = headerEl.querySelector('i'); if(content.style.display === 'none' || content.style.display === '') { content.style.display = 'block'; icon.className = 'bi bi-chevron-up'; } else { content.style.display = 'none'; icon.className = 'bi bi-chevron-down'; } };
+
+    function calculateProvisioning(isHistoryReload = false) {
+      var commName = document.getElementById('comm').value, mainAddr = document.getElementById('addr').value.trim(), unitField = document.getElementById('unit').value.trim();
+      var cData = APP_DATA.communities[commName];
+      if (!cData || !mainAddr) return alert("Select community and enter address.");
+
+      document.getElementById('trackComm').innerText = commName;
+
+      var btn = document.getElementById('btnGen'); btn.innerText = "Processing...";
+      document.getElementById('qrResults').style.display = 'block'; document.getElementById('errorBox').style.display = 'none'; document.getElementById('successBox').style.display = 'none';
+
+      var type = cData.type ? cData.type.toUpperCase() : "SFU", locId = cData.locationId ? cData.locationId.toUpperCase() : "";
+      if (!locId) { showError("MISSING LOCATION ID"); btn.innerText = "Generate QRs"; return; }
+
+      var accId = "", locStr = "", fullAddr = mainAddr;
+
+      if (type === "SFU" || type === "TH") {
+        if (/apt|unit|bldg/i.test(mainAddr) || unitField !== "") { showError("SFU/TH cannot contain Apt/Unit/Bldg."); btn.innerText = "Generate QRs"; return; }
+        var hMatch = mainAddr.match(/^(\d+)/); if (!hMatch) { showError("Missing house number."); btn.innerText = "Generate QRs"; return; }
+        var padHouse = hMatch[1].padStart(5, '0'); var parts = mainAddr.replace(hMatch[1], "").trim().split(" ").filter(function(p){ return p.length > 2; }); var abbr = "XX";
+        if (parts.length >= 2) abbr = parts[0][0] + parts[1][0]; else if (parts.length === 1 && parts[0].length > 1) abbr = parts[0][0] + parts[0].slice(-1);
+        accId = padHouse + abbr.toUpperCase() + "-" + locId; locStr = locId + "-" + padHouse + abbr.toUpperCase();
+      } else if (type === "MDU") {
+        var uL = "U", uN = unitField;
+        if (unitField) { fullAddr = mainAddr + " " + unitField; var uM = unitField.match(/([a-zA-Z]*)\s*(\d+[a-zA-Z]*)/); if(uM){ uL = uM[1]?uM[1].charAt(0).toUpperCase():"U"; uN=uM[2]; } else { uL="U"; uN=unitField; } } 
+        else { var inline = mainAddr.match(/(\w+)\s+(\d+[a-zA-Z]*)$/); if (inline) { uL = inline[1].charAt(0).toUpperCase(); uN = inline[2]; mainAddr = mainAddr.replace(inline[0], "").trim(); } else { showError("MDU requires Apt/Unit #."); btn.innerText = "Generate QRs"; return; } }
+        var hMatch = mainAddr.match(/^(\d+)/); if (!hMatch) { showError("Missing house number."); btn.innerText = "Generate QRs"; return; }
+        var parts = mainAddr.replace(hMatch[1], "").trim().split(" ").filter(function(p){ return p.length > 0; }); var abbr = "XX"; 
+        if (parts.length >= 2) abbr = parts[0][0] + parts[1][0]; else if (parts.length === 1 && parts[0].length > 1) abbr = parts[0][0] + parts[0].slice(-1);
+        accId = hMatch[1] + abbr.toUpperCase() + "-" + uL + uN + "-" + locId; locStr = locId + "-" + uL + uN + "-" + hMatch[1] + abbr.toUpperCase();
+      }
+
+      var fullLocationStr = fullAddr + "\n" + (cData.city||"") + ", TX " + (cData.zip||"");
+
+      var html1 = buildQrItem('Calix Account#/ONT ID', accId) + buildQrItem('Calix Location/Location ID', locStr) + buildQrItem('Customer Name', '(Customer Name Here)') + buildQrItem('Address', fullLocationStr);
+      var html2 = buildQrItem('Calix Account#/ONT ID', accId) + buildQrItem('141 Palestine Trail', 'PROVISIONED') + buildQrItem('Address', fullAddr) + buildQrItem('City', cData.city||"") + buildQrItem('Zip', cData.zip||"");
+      var html3 = buildQrItem('Calix Account#/ONT ID', accId) + buildQrItem('Calix Location/Location ID', locStr) + buildQrItem('Description', fullLocationStr);
+      
+      document.getElementById('successBox').innerHTML = buildSection('CalixCloud Add Sub', '#f59e0b', html1, true) + buildSection('SMx Add Subscriber', '#0284c7', html2, false) + buildSection('SMx Create ONT', '#16a34a', html3, false);
+      document.getElementById('successBox').style.display = 'block'; btn.innerText = "Generate QRs";
+
+      if (!isHistoryReload) {
+        var hObj = { id: accId, addr: fullAddr, comm: commName, mkt: document.getElementById('mkt').value, typ: type };
+        google.script.run.withSuccessHandler(function(){ google.script.run.withSuccessHandler(function(d){ APP_DATA.history = d.history; renderHistory(); }).getAppData(); }).logHistory(hObj, getTechId());
+      }
+      setTimeout(function() { document.getElementById('successBox').scrollIntoView({behavior: "smooth", block: "start"}); }, 100);
+    }
+
+    function buildSection(title, color, contentHtml, isActive) { var display = isActive ? 'block' : 'none'; var icon = isActive ? 'bi-chevron-up' : 'bi-chevron-down'; return '<div class="section-banner" style="background:' + color + ';" onclick="toggleSection(this)"><span>' + title + '</span><i class="bi ' + icon + '"></i></div><div class="section-content" style="display:' + display + ';">' + contentHtml + '</div>'; }
+    function buildQrItem(label, val) { if(!val) return ''; val = String(val); var qrUrl = 'https://quickchart.io/qr?text=' + encodeURIComponent(val) + '&dark=%230f172a&light=%23ffffff&margin=1'; var escVal = val.replace(/'/g, "\\'").replace(/\n/g, "\\n"); return '<div class="qr-item"><div style="flex:1; padding-right:10px;"><div class="micro-label">' + label + '</div><div class="data-font" style="white-space:pre-wrap;">' + val + '</div><button class="btn btn-outline-secondary btn-copy-dense" onclick="copySpecific(\'' + escVal + '\', this)">COPY</button></div><img src="' + qrUrl + '" class="qr-img shadow-sm"></div>'; }
+    function showError(msg) { document.getElementById('errorText').innerText = msg; document.getElementById('errorBox').style.display = 'block'; }
+    function copySpecific(text, btn) { navigator.clipboard.writeText(text); var orig = btn.innerText; btn.innerText = "COPIED!"; btn.classList.add("btn-success"); btn.classList.remove("btn-outline-secondary"); setTimeout(function(){ btn.innerText = orig; btn.classList.remove("btn-success"); btn.classList.add("btn-outline-secondary"); }, 1500); }
+    function openApptModal() { var html = '<h5 class="fw-bold mb-3">Add Task</h5><span class="micro-label">Customer Name</span><input type="text" id="modName" class="form-control mb-3"><span class="micro-label">Address</span><input type="text" id="modAddr" class="form-control mb-3"><span class="micro-label">Time</span><input type="text" id="modTime" class="form-control mb-4" placeholder="e.g. 10:00 AM"><div class="d-flex gap-2"><button class="btn btn-outline-secondary w-50" onclick="closeModal()">Cancel</button><button class="btn btn-primary w-50" onclick="saveAppt()">Save</button></div>'; document.getElementById('modalContent').innerHTML = html; document.getElementById('modalOverlay').classList.add('show'); }
+    function deleteAppt(id) { if(confirm("Remove appointment?")) { APP_DATA.appointments = APP_DATA.appointments.filter(function(a){ return a.id.toString() !== id.toString(); }); renderAppointments(); google.script.run.deleteAppt(id); } }
+    function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); }
+  </script>
+</body>
+</html>
