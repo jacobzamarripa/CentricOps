@@ -1953,27 +1953,56 @@
       }
       
       var bounds = [];
+      var geocodingQueue = [];
       Object.keys(commGroups).forEach(function(commName) {
         var commInfo = APP_DATA.communities[commName];
         if (commInfo) {
           if (commInfo.lat && commInfo.lng) {
             plotMarker(commName, commInfo.lat, commInfo.lng, commGroups[commName], bounds, techColorMap);
           } else if (commInfo.city && commInfo.zip) { 
-            var query = encodeURIComponent(commInfo.city + ", TX " + commInfo.zip);
-            fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + query)
-              .then(response => response.json())
-              .then(data => {
-                if (data && data.length > 0) {
-                  var lat = parseFloat(data[0].lat);
-                  var lng = parseFloat(data[0].lon);
-                  commInfo.lat = lat; commInfo.lng = lng;
-                  google.script.run.withFailureHandler(err => console.error(err)).saveCommunityCoordinates(commName, lat, lng);
-                  plotMarker(commName, lat, lng, commGroups[commName], bounds, techColorMap);
-                }
-              }).catch(err => console.error("Geocoding failed for " + commName, err));
+            geocodingQueue.push(commName);
           }
         }
       });
+      
+      function processGeocodeQueue() {
+         if (geocodingQueue.length === 0) return;
+         var commName = geocodingQueue.shift();
+         var commInfo = APP_DATA.communities[commName];
+         
+         var preciseQuery = encodeURIComponent(commName + ", " + commInfo.city + ", TX " + commInfo.zip);
+         var fallbackQuery = encodeURIComponent(commInfo.city + ", TX " + commInfo.zip);
+         
+         fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + preciseQuery)
+           .then(res => res.json())
+           .then(data => {
+             if (data && data.length > 0) {
+               // Precise Match Found
+               var lat = parseFloat(data[0].lat); var lng = parseFloat(data[0].lon);
+               commInfo.lat = lat; commInfo.lng = lng;
+               google.script.run.withFailureHandler(err => console.error(err)).saveCommunityCoordinates(commName, lat, lng);
+               plotMarker(commName, lat, lng, commGroups[commName], bounds, techColorMap);
+               setTimeout(processGeocodeQueue, 1500); // 1.5s delay before next
+             } else {
+               // Fallback to City + Zip
+               setTimeout(function() {
+                 fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + fallbackQuery)
+                   .then(res2 => res2.json())
+                   .then(data2 => {
+                     if (data2 && data2.length > 0) {
+                       var lat = parseFloat(data2[0].lat); var lng = parseFloat(data2[0].lon);
+                       commInfo.lat = lat; commInfo.lng = lng;
+                       google.script.run.withFailureHandler(err => console.error(err)).saveCommunityCoordinates(commName, lat, lng);
+                       plotMarker(commName, lat, lng, commGroups[commName], bounds, techColorMap);
+                     }
+                     setTimeout(processGeocodeQueue, 1500); // 1.5s delay before next
+                   }).catch(e => { console.error(e); setTimeout(processGeocodeQueue, 1500); });
+               }, 1500);
+             }
+           }).catch(err => { console.error(err); setTimeout(processGeocodeQueue, 1500); });
+      }
+      
+      processGeocodeQueue();
     }
     
     function plotMarker(commName, lat, lng, usersArray, bounds, techColorMap) {
