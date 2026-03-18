@@ -89,13 +89,14 @@
         max-height: none !important;
       }
       .dock { display: none !important; }
-      #pane-history { grid-column: 1; grid-row: 2; }
       #pane-apps { grid-column: 1; grid-row: 1; }
+      #pane-map { grid-column: 1; grid-row: 2; }
+      #pane-history { grid-column: 1; grid-row: 3; }
       #pane-tracker { grid-column: 2; grid-row: 1; }
       #pane-tool { grid-column: 2; grid-row: 2; }
-      #pane-comm { grid-column: 1 / span 2; grid-row: 3; }
       #pane-eod { grid-column: 2; grid-row: 3; }
-      #pane-admin { grid-column: 1 / span 2; grid-row: 4; }
+      #pane-comm { grid-column: 1 / span 2; grid-row: 4; }
+      #pane-admin { grid-column: 1 / span 2; grid-row: 5; }
       .desktop-only { display: block; }
       .mobile-only { display: none !important; }
     }
@@ -122,10 +123,11 @@
       }
       .dock { display: none !important; }
       
-      #pane-tracker { grid-column: 1; grid-row: 1 / span 3; }
+      #pane-tracker { grid-column: 1; grid-row: 1 / span 4; }
       #pane-apps { grid-column: 2; grid-row: 1; }
-      #pane-history { grid-column: 2; grid-row: 2; }
-      #pane-comm { grid-column: 2; grid-row: 3; }
+      #pane-map { grid-column: 2; grid-row: 2; }
+      #pane-history { grid-column: 2; grid-row: 3; }
+      #pane-comm { grid-column: 2; grid-row: 4; }
       #pane-tool { grid-column: 3; grid-row: 1; }
       #pane-eod { grid-column: 3; grid-row: 2; }
       #pane-admin { grid-column: 3; grid-row: 3; }
@@ -435,6 +437,14 @@
       </div>
     </div>
 
+    <div id="pane-map" class="glass-pane">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0"><i class="bi bi-geo-alt-fill me-2"></i>Map Maps</h4>
+        <button class="btn btn-sm btn-light rounded-circle shadow-sm text-primary" onclick="renderAdminMap()"><i class="bi bi-arrow-clockwise"></i></button>
+      </div>
+      <div id="adminMap" style="height: 300px; border: 1px solid var(--border-glass); border-radius: 12px; z-index: 1;"></div>
+    </div>
+
     <div id="pane-comm" class="glass-pane">
       <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="mb-0"><i class="bi bi-building me-2"></i>Communities</h4>
@@ -498,9 +508,6 @@
       </div>
 
       <div id="adminContent" style="display:none;">
-        <h6 class="fw-bold text-primary mb-3"><i class="bi bi-geo-alt-fill me-2"></i>Team Locations (Today)</h6>
-        <div id="adminMap" style="height: 300px; border: 1px solid var(--border-glass); border-radius: 12px; z-index: 1; margin-bottom: 24px;"></div>
-
         <h6 class="fw-bold text-primary mb-3">Recent Feedback</h6>
         <div id="adminFeedbackList" class="overflow-auto" style="max-height: calc(100vh - 250px);"></div>
       </div>
@@ -517,6 +524,7 @@
     <div class="dock-item" onclick="switchPane('pane-tracker', this)"><i class="bi bi-clipboard-check"></i></div>
     <div class="dock-item" onclick="switchPane('pane-tool', this)"><i class="bi bi-qr-code-scan"></i></div>
     <div class="dock-item" onclick="switchPane('pane-history', this)"><i class="bi bi-clock-history"></i></div>
+    <div class="dock-item" onclick="switchPane('pane-map', this)"><i class="bi bi-geo-alt"></i></div>
     <div class="dock-item" onclick="switchPane('pane-comm', this)"><i class="bi bi-building"></i></div>
   </div>
 
@@ -575,7 +583,7 @@
     // --- SWIPE GESTURES ---
     var touchstartX = 0; var touchendX = 0;
     var touchstartY = 0; var touchendY = 0;
-    var panesOrder = ['pane-apps', 'pane-tracker', 'pane-tool', 'pane-history', 'pane-comm'];
+    var panesOrder = ['pane-apps', 'pane-tracker', 'pane-tool', 'pane-history', 'pane-map', 'pane-comm'];
     document.addEventListener('touchstart', function(e) { touchstartX = e.changedTouches[0].screenX; touchstartY = e.changedTouches[0].screenY; }, {passive: true});
     document.addEventListener('touchend', function(e) { touchendX = e.changedTouches[0].screenX; touchendY = e.changedTouches[0].screenY; handleSwipe(); }, {passive: true});
     function handleSwipe() {
@@ -625,6 +633,7 @@
           renderAppointments(); 
           renderHistory(); 
           renderCommunities(data.communities);
+          setTimeout(renderAdminMap, 100);
           fillDropdown('mkt', data.markets, "Market"); fillDropdown('typ', data.types, "Type");
           
           var tFilter = document.getElementById('commTypeFilter');
@@ -792,7 +801,6 @@
         document.getElementById('adminContent').style.display = 'block';
         document.getElementById('adminPwdInput').value = '';
         showNewFeedbackLog(); // Show new feedback popups ONLY after unlocking
-        setTimeout(renderAdminMap, 100); // Allow DOM to render before Leaflet size calculation
       } else {
         alert('Incorrect password.');
       }
@@ -910,6 +918,7 @@
       
       renderAppointments();
       renderHistory();
+      renderAdminMap();
     }
 
     function parseApptTime(a) {
@@ -1854,7 +1863,15 @@
       
       var today = new Date();
       var todayStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
-      var todayAppts = (APP_DATA.appointments || []).filter(function(a) { 
+      var appts = APP_DATA.appointments || [];
+      
+      if (!isManager()) { 
+         appts = appts.filter(function(a) { return a.user === getTechId(); });
+      } else if (window.selectedTechFilter !== 'All') {
+         appts = appts.filter(function(a) { return a.user === window.selectedTechFilter; });
+      }
+      
+      var todayAppts = appts.filter(function(a) { 
         if (!a.time) return false;
         var ad = new Date(a.time);
         var adStr = ad.getFullYear() + "-" + String(ad.getMonth() + 1).padStart(2, '0') + "-" + String(ad.getDate()).padStart(2, '0');
@@ -1868,12 +1885,28 @@
         commGroups[a.comm].push(a.user);
       });
       
+      var fiberColors = [
+        { bg: '#3b82f6', fg: '#fff' }, { bg: '#f97316', fg: '#fff' }, { bg: '#22c55e', fg: '#fff' },
+        { bg: '#8b4513', fg: '#fff' }, { bg: '#64748b', fg: '#fff' }, { bg: '#ffffff', fg: '#000' },
+        { bg: '#ef4444', fg: '#fff' }, { bg: '#000000', fg: '#fff' }, { bg: '#eab308', fg: '#000' },
+        { bg: '#8b5cf6', fg: '#fff' }, { bg: '#f43f5e', fg: '#fff' }, { bg: '#06b6d4', fg: '#000' }
+      ];
+      var techColorMap = {};
+      if (APP_DATA.roster) {
+        var tMap = {};
+        APP_DATA.roster.forEach(function(e) { tMap[e.short || e.name] = e.name; });
+        Object.keys(tMap).sort().forEach(function(t, i) {
+          techColorMap[t] = fiberColors[i % fiberColors.length].bg;
+          techColorMap[toProperCase(t)] = fiberColors[i % fiberColors.length].bg;
+        });
+      }
+      
       var bounds = [];
       Object.keys(commGroups).forEach(function(commName) {
         var commInfo = APP_DATA.communities[commName];
         if (commInfo) {
           if (commInfo.lat && commInfo.lng) {
-            plotMarker(commName, commInfo.lat, commInfo.lng, commGroups[commName], bounds);
+            plotMarker(commName, commInfo.lat, commInfo.lng, commGroups[commName], bounds, techColorMap);
           } else if (commInfo.city && commInfo.zip) { 
             var query = encodeURIComponent(commInfo.city + ", TX " + commInfo.zip);
             fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + query)
@@ -1884,7 +1917,7 @@
                   var lng = parseFloat(data[0].lon);
                   commInfo.lat = lat; commInfo.lng = lng;
                   google.script.run.withFailureHandler(err => console.error(err)).saveCommunityCoordinates(commName, lat, lng);
-                  plotMarker(commName, lat, lng, commGroups[commName], bounds);
+                  plotMarker(commName, lat, lng, commGroups[commName], bounds, techColorMap);
                 }
               }).catch(err => console.error("Geocoding failed for " + commName, err));
           }
@@ -1892,11 +1925,19 @@
       });
     }
     
-    function plotMarker(commName, lat, lng, usersArray, bounds) {
+    function plotMarker(commName, lat, lng, usersArray, bounds, techColorMap) {
       if (!isFinite(lat) || !isFinite(lng)) return;
       var uniqueUsers = Array.from(new Set(usersArray));
+      var markerBg = '#3b82f6';
+      if (isManager() && uniqueUsers.length > 0 && techColorMap[uniqueUsers[0]]) {
+         markerBg = techColorMap[uniqueUsers[0]];
+      }
+      
       var popupText = "<div class='small fw-bold'>" + commName + "</div><div class='micro-label mt-1'>Techs: " + toProperCase(uniqueUsers.join(", ")) + "</div>";
-      var marker = L.marker([lat, lng]).bindPopup(popupText);
+      var iconHtml = '<div style="background-color: ' + markerBg + '; width: 22px; height: 22px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>';
+      var customIcon = L.divIcon({ html: iconHtml, className: '', iconSize: [26, 26], iconAnchor: [13, 13] });
+
+      var marker = L.marker([lat, lng], { icon: customIcon }).bindPopup(popupText);
       adminMapMarkers.addLayer(marker);
       bounds.push([lat, lng]);
       if (adminMapVar && bounds.length > 0) { adminMapVar.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 }); }
