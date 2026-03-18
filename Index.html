@@ -6,6 +6,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
   <style>
     /* --- EXECUTIVE GLASS DESIGN SYSTEM --- */
     :root {
@@ -541,6 +543,13 @@
       return str.toString().toLowerCase().replace(/\b\w/g, function(char) { return char.toUpperCase(); });
     }
 
+    function initSelect(id) {
+      var el = typeof id === 'string' ? document.getElementById(id) : id;
+      if (!el) return;
+      if (el.tomselect) el.tomselect.destroy();
+      new TomSelect(el, { create: false, controlInput: '<input>', searchField: ['text'] });
+    }
+
     function toggleDarkMode() {
       var body = document.body;
       body.classList.toggle('dark-mode');
@@ -680,6 +689,18 @@
           pSelect.innerHTML = '<option value="">-- None --</option>';
           data.roster.forEach(function(emp) { pSelect.innerHTML += '<option value="' + emp.name + '">' + toProperCase(emp.name) + '</option>'; });
 
+          // Initialize Tom Select on all dropdowns
+          setTimeout(function() {
+            initSelect('commTypeFilter');
+            initSelect('commMktFilter');
+            initSelect('trackJobType');
+            initSelect('trackTubeColor');
+            initSelect('trackPortColor');
+            initSelect('eodPartner');
+            initSelect('histFilter');
+            initSelect('histGroupBy');
+          }, 100);
+
         })
         .withFailureHandler(function(err) { document.getElementById('loaderText').innerHTML = '<span class="text-danger fw-bold">' + err.message + '</span>'; clearInterval(loadingInterval); }).getAppData();
     }
@@ -693,6 +714,7 @@
         if (force) { html += '<div class="d-flex gap-2"><button class="btn btn-outline-secondary w-50 rounded-pill fw-bold" onclick="closeModal()">Cancel</button><button class="btn btn-primary w-50 rounded-pill fw-bold" onclick="processIdentitySelection(' + force + ')">Next</button></div>'; }
         else { html += '<button class="btn btn-primary w-100 rounded-pill fw-bold" onclick="processIdentitySelection(' + force + ')">Next</button>'; }
         document.getElementById('modalContent').innerHTML = html; document.getElementById('modalOverlay').classList.add('show');
+        setTimeout(function() { initSelect('inputTechId'); }, 100);
       } else { 
         document.getElementById('displayTechId').innerHTML = toProperCase(techId) + ' <i class="bi bi-pencil-fill ms-1 opacity-50"></i>'; 
         toggleAdminFeatures();
@@ -1499,6 +1521,7 @@
       html += '<div class="row g-2 mb-4"><div class="col-6"><span class="micro-label">Location ID</span><input type="text" id="modCommLoc" class="form-control" value="' + c.locationId + '"></div><div class="col-6"><span class="micro-label">VLAN</span><input type="text" id="modCommVlan" class="form-control" value="' + (c.vlan||'2001') + '"></div></div>';
       html += '<div class="d-flex gap-2"><button class="btn btn-outline-secondary w-50" onclick="closeModal()">Cancel</button><button class="btn btn-primary w-50" onclick="saveComm()">' + (isEdit ? 'Update' : 'Create') + '</button></div>'; 
       document.getElementById('modalContent').innerHTML = html; document.getElementById('modalOverlay').classList.add('show'); 
+      setTimeout(function() { initSelect('modCommMkt'); initSelect('modCommTyp'); }, 100); 
     }
 
     function applyCommFilter() { 
@@ -1550,12 +1573,18 @@
     }
 
     // --- PROVISIONING QR GENERATOR ---
-    function fillDropdown(id, list, label) { var s = document.getElementById(id); s.innerHTML = '<option value="">-- ' + label + ' --</option>'; list.forEach(function(item) { s.innerHTML += '<option value="' + item + '">' + item + '</option>'; }); }
+    function fillDropdown(id, list, label) { 
+      var s = document.getElementById(id); 
+      s.innerHTML = '<option value="">-- ' + label + ' --</option>'; 
+      list.forEach(function(item) { s.innerHTML += '<option value="' + item + '">' + item + '</option>'; }); 
+      initSelect(id);
+    }
+    
     function filterComms() {
       var m = document.getElementById('mkt').value, t = document.getElementById('typ').value, cs = document.getElementById('comm');
       document.getElementById('unitContainer').style.display = (t === 'MDU') ? 'block' : 'none';
       if (m && t) { cs.disabled = false; var fNames = []; Object.keys(APP_DATA.communities).forEach(function(k) { if(APP_DATA.communities[k].market === m && APP_DATA.communities[k].type === t) fNames.push(k); }); fillDropdown('comm', fNames, "Select Community"); } 
-      else { cs.disabled = true; cs.innerHTML = '<option value="">-- Select Market & Type --</option>'; }
+      else { cs.disabled = true; cs.innerHTML = '<option value="">-- Select Market & Type --</option>'; initSelect('comm'); }
     }
 
     window.toggleSection = function(headerEl) { var content = headerEl.nextElementSibling; var icon = headerEl.querySelector('i'); if(content.style.display === 'none' || content.style.display === '') { content.style.display = 'block'; icon.className = 'bi bi-chevron-up'; } else { content.style.display = 'none'; icon.className = 'bi bi-chevron-down'; } };
