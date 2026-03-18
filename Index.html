@@ -584,8 +584,16 @@
     var touchstartX = 0; var touchendX = 0;
     var touchstartY = 0; var touchendY = 0;
     var panesOrder = ['pane-apps', 'pane-tracker', 'pane-tool', 'pane-history', 'pane-map', 'pane-comm'];
-    document.addEventListener('touchstart', function(e) { touchstartX = e.changedTouches[0].screenX; touchstartY = e.changedTouches[0].screenY; }, {passive: true});
-    document.addEventListener('touchend', function(e) { touchendX = e.changedTouches[0].screenX; touchendY = e.changedTouches[0].screenY; handleSwipe(); }, {passive: true});
+    var preventSwipe = false;
+    document.addEventListener('touchstart', function(e) { 
+      preventSwipe = !!e.target.closest('#adminMap') || !!e.target.closest('.leaflet-container');
+      if (preventSwipe) return;
+      touchstartX = e.changedTouches[0].screenX; touchstartY = e.changedTouches[0].screenY; 
+    }, {passive: true});
+    document.addEventListener('touchend', function(e) { 
+      if (preventSwipe) return;
+      touchendX = e.changedTouches[0].screenX; touchendY = e.changedTouches[0].screenY; handleSwipe(); 
+    }, {passive: true});
     function handleSwipe() {
       if (window.innerWidth > 1024) return; 
       var diffX = touchstartX - touchendX; var diffY = Math.abs(touchstartY - touchendY);
