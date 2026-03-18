@@ -439,7 +439,7 @@
 
     <div id="pane-map" class="glass-pane">
       <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="mb-0"><i class="bi bi-geo-alt-fill me-2"></i>Map Maps</h4>
+        <h4 class="mb-0" id="mapPaneTitle"><i class="bi bi-geo-alt-fill me-2"></i>Team Locations</h4>
         <button class="btn btn-sm btn-light rounded-circle shadow-sm text-primary" onclick="renderAdminMap()"><i class="bi bi-arrow-clockwise"></i></button>
       </div>
       <div id="adminMap" style="height: 300px; border: 1px solid var(--border-glass); border-radius: 12px; z-index: 1;"></div>
@@ -1849,6 +1849,20 @@
     var adminMapMarkers = L.layerGroup();
     
     function renderAdminMap() {
+      // Dynamic Map Title
+      var titleEl = document.getElementById('mapPaneTitle');
+      if (titleEl) {
+        if (isManager()) {
+           if (window.selectedTechFilter && window.selectedTechFilter !== 'All') {
+             titleEl.innerHTML = '<i class="bi bi-geo-alt-fill me-2"></i>' + toProperCase(window.selectedTechFilter).split(' ')[0] + "'s Route";
+           } else {
+             titleEl.innerHTML = '<i class="bi bi-geo-alt-fill me-2"></i>Team Locations';
+           }
+        } else {
+           titleEl.innerHTML = '<i class="bi bi-geo-alt-fill me-2"></i>My Route';
+        }
+      }
+
       if (!adminMapVar) {
         adminMapVar = L.map('adminMap').setView([31.9686, -99.9018], 6); // Default Texas
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
