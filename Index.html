@@ -1924,7 +1924,7 @@
       
       var todayAppts = appts.filter(function(a) { 
         if (!a.time) return false;
-        var ad = new Date(a.time);
+        var ad = parseApptTime(a).date;
         var adStr = ad.getFullYear() + "-" + String(ad.getMonth() + 1).padStart(2, '0') + "-" + String(ad.getDate()).padStart(2, '0');
         return adStr === todayStr;
       });
