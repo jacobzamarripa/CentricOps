@@ -21,9 +21,11 @@ function setupDatabase() {
   
   // Added Work Tracker to the local DB setup
   const localSheets = [
-    { name: '2_Appointments', headers: ['ID', 'Customer Name', 'Address', 'Time', 'Status'] },
+    { name: '2_Appointments', headers: ['ID', 'Customer Name', 'Address', 'Time', 'Status', 'User', 'Community', 'Job Type', 'Unit'] },
     { name: '3_History', headers: ['Timestamp', 'Tech ID', 'Account ID', 'Address', 'Community', 'Market', 'Type'] },
-    { name: '4_Work_Tracker', headers: ['Timestamp', 'Tech ID', 'Community', 'Address', 'Job Type', 'Light Level', 'Distance', 'Tube/Splitter Color', 'Port/Fiber Color', 'Splice Count', 'Notes', 'Form URL'] }
+    { name: '4_Work_Tracker', headers: ['Timestamp', 'Tech ID', 'Community', 'Address', 'Job Type', 'Light Level', 'Distance', 'Tube/Splitter Color', 'Port/Fiber Color', 'Splice Count', 'Serial Number', 'Notes', 'Form URL'] },
+    { name: '5_Identity_Log', headers: ['Timestamp', 'Old Identity', 'New Identity'] },
+    { name: '6_Feedback', headers: ['Timestamp', 'Tech ID', 'Feedback'] }
   ];
 
   localSheets.forEach(s => {
@@ -37,7 +39,7 @@ function setupDatabase() {
   });
 }
 
-function getAppData() {
+function getAppData(user) {
   try {
     const masterSS = SpreadsheetApp.openById(MASTER_COMM_ID);
     const commSheet = masterSS.getSheetByName('Communities');
@@ -59,37 +61,91 @@ function getAppData() {
       const rosterSS = SpreadsheetApp.openById(ROSTER_ID);
       const rosterSheet = rosterSS.getSheetByName('Roster');
       if (rosterSheet && rosterSheet.getLastRow() > 1) {
-        const rawRoster = rosterSheet.getRange(2, 1, rosterSheet.getLastRow() - 1, 6).getValues();
-        rosterList = rawRoster.filter(r => r[5] === true || r[5] === 'TRUE').map(r => ({ region: r[0], name: r[1], short: r[3], role: r[4] }));
+        const lastCol = rosterSheet.getLastColumn();
+        const rawRoster = rosterSheet.getRange(1, 1, rosterSheet.getLastRow(), lastCol).getValues();
+        const headers = rawRoster[0].map(h => String(h).trim().toLowerCase());
+
+        const idx = {
+          region: headers.indexOf('sub_region'),
+          name: headers.indexOf('employee_name'),
+          short: headers.indexOf('person_short'),
+          role: headers.indexOf('role'),
+          active: headers.indexOf('active'),
+          email: headers.indexOf('email'),
+          phone: headers.indexOf('phone'),
+          manager: headers.indexOf('manager_name'),
+          password: headers.indexOf('pin') !== -1 ? headers.indexOf('pin') : headers.indexOf('password')
+        };
+
+        rosterList = rawRoster.slice(1)
+          .filter(r => idx.name !== -1 && r[idx.name] && String(r[idx.name]).trim() !== '' && idx.active !== -1 && ['true', 'active', 'yes'].includes(String(r[idx.active]).trim().toLowerCase()))
+          .map(r => ({ 
+            region: idx.region !== -1 ? r[idx.region] : '', 
+            name: idx.name !== -1 ? r[idx.name] : '', 
+            short: idx.short !== -1 ? r[idx.short] : '', 
+            role: idx.role !== -1 ? r[idx.role] : '', 
+            active: idx.active !== -1 ? r[idx.active] : '', 
+            email: idx.email !== -1 ? r[idx.email] : '', 
+            phone: idx.phone !== -1 ? r[idx.phone] : '', 
+            manager: idx.manager !== -1 ? r[idx.manager] : '',
+            password: idx.password !== -1 ? String(r[idx.password]) : ''
+          }));
       }
-    } catch(e) { console.error("Could not load Roster DB"); }
+    } catch(e) { 
+      // Inject the error directly into the UI so it doesn't fail silently
+      rosterList = [{ region: "Error", name: "⚠️ Data Error: " + e.message, short: "Error", role: "System" }];
+    }
 
     const localSS = SpreadsheetApp.getActiveSpreadsheet();
     let apptData = [];
     let apptSheet = localSS.getSheetByName('2_Appointments');
     if (apptSheet && apptSheet.getLastRow() > 1) {
-      apptData = apptSheet.getRange(2, 1, apptSheet.getLastRow() - 1, 5).getValues().map(r => ({ id: r[0], name: r[1], address: r[2], time: r[3], status: r[4] }));
+      let lastCol = apptSheet.getLastColumn();
+      let cols = Math.max(lastCol, 9);
+      apptData = apptSheet.getRange(2, 1, apptSheet.getLastRow() - 1, cols).getValues()
+        .map(r => ({ id: r[0], name: r[1], address: r[2], time: r[3], status: r[4], user: r[5]||'', comm: r[6]||'', jobType: r[7]||'', unit: r[8]||'' }));
     }
 
-    let histData = [];
-    let histSheet = localSS.getSheetByName('3_History');
-    if (histSheet && histSheet.getLastRow() > 1) {
-      histData = histSheet.getRange(2, 1, histSheet.getLastRow() - 1, 7).getValues().reverse().slice(0, 30).map(r => ({
-        time: Utilities.formatDate(new Date(r[0]), Session.getScriptTimeZone(), "MM/dd hh:mm a"),
-        user: r[1], id: r[2], addr: r[3], comm: r[4], mkt: r[5], typ: r[6]
-      }));
-    }
+    let histData = []; 
+    try {
+      let histSheet = localSS.getSheetByName('4_Work_Tracker');
+      if (histSheet && histSheet.getLastRow() > 1) {
+        const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000); // 48 hours ago
+        const rawData = histSheet.getRange(2, 1, histSheet.getLastRow() - 1, 5).getValues();
+        const reversed = rawData.reverse();
+        for (let i = 0; i < reversed.length; i++) {
+          let rowDate = new Date(reversed[i][0]);
+          if (rowDate >= cutoff) {
+            histData.push({ time: Utilities.formatDate(rowDate, Session.getScriptTimeZone(), "MM/dd hh:mm a"), user: reversed[i][1], comm: reversed[i][2], addr: reversed[i][3], typ: reversed[i][4] });
+          } else {
+            break; // Stop querying since rows are chronological
+          }
+        }
+      }
+    } catch(e) { console.error("History preload error:", e); }
 
     // Fetch Job Types from your old script logic
     const jobTypes = [
-      "Home Not Ready", "Fiber Blow", "Fiber Blow Complete", "Hard Down", 
+      "Home Not Ready", "Fiber Blow", "Hard Down", 
       "Trouble Ticket", "Refered to Maintenance", "Performed Maintenance", 
-      "Not Live", "FB/ Install", "FB/ Install Complete", "Install", 
-      "Install Complete", "Mesh Install", "Mesh Install Complete", 
-      "Doorbell Install", "Doorbell Install Complete"
+      "Not Live", "Fiber Blow + Install", "Install", 
+      "Mesh Install", "Doorbell Install"
     ];
 
-    return { communities: communityMap, markets: Array.from(marketsSet).sort(), types: Array.from(typesSet).sort(), appointments: apptData, history: histData, roster: rosterList, jobTypes: jobTypes };
+    let feedbackData = [];
+    try {
+      let fbSheet = localSS.getSheetByName('6_Feedback');
+      if (fbSheet && fbSheet.getLastRow() > 1) {
+        const rawFb = fbSheet.getRange(2, 1, fbSheet.getLastRow() - 1, 3).getValues();
+        feedbackData = rawFb.reverse().slice(0, 50).map(r => ({
+          time: Utilities.formatDate(new Date(r[0]), Session.getScriptTimeZone(), "MM/dd hh:mm a"),
+          user: r[1], text: r[2],
+          timestamp: new Date(r[0]).getTime()
+        }));
+      }
+    } catch(e) { console.error("Feedback preload error:", e); }
+
+    return { communities: communityMap, markets: Array.from(marketsSet).sort(), types: Array.from(typesSet).sort(), appointments: apptData, history: histData, roster: rosterList, jobTypes: jobTypes, feedback: feedbackData };
   } catch (error) { throw new Error("Backend Error: " + error.message); }
 }
 
@@ -105,6 +161,7 @@ function logWorkTracker(jobData, user) {
     if (jobData.distance) extraInfo.push(`Dist: ${jobData.distance}`);
     if (jobData.tubeColor) extraInfo.push(`Tube: ${jobData.tubeColor}`);
     if (jobData.portColor) extraInfo.push(`Port: ${jobData.portColor}`);
+    if (jobData.serial) extraInfo.push(`Serial: ${jobData.serial}`);
     
     if (extraInfo.length > 0) {
       combinedNotes = extraInfo.join(" | ") + "\n\n" + combinedNotes;
@@ -123,10 +180,61 @@ function logWorkTracker(jobData, user) {
     ];
     const formUrl = baseURL + "&" + params.filter(Boolean).join("&");
 
-    if(sheet) sheet.appendRow([new Date(), user, jobData.comm, jobData.addr, jobData.type, jobData.light, jobData.distance, jobData.tubeColor, jobData.portColor, jobData.splice, jobData.notes, formUrl]);
+    if(sheet) sheet.appendRow([new Date(), user, jobData.comm, jobData.addr, jobData.type, jobData.light, jobData.distance, jobData.tubeColor, jobData.portColor, jobData.splice, jobData.serial, jobData.notes, formUrl]);
+    
+    if (jobData.apptId) {
+      updateApptStatus(jobData.apptId, 'Logged');
+    }
     
     return { success: true, url: formUrl };
   } catch(e) { return { error: e.message }; }
+}
+
+// --- SECURITY LOGGING ---
+function logIdentityChange(oldName, newName) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('5_Identity_Log');
+    if (sheet) sheet.appendRow([new Date(), oldName || "Unknown", newName]);
+  } catch (e) { console.error(e); }
+}
+
+// --- IDENTITY PIN MANAGEMENT ---
+function updateUserPin(userIdentifier, pin) {
+  try {
+    const rosterSS = SpreadsheetApp.openById(ROSTER_ID);
+    const rosterSheet = rosterSS.getSheetByName('Roster');
+    if (!rosterSheet) throw new Error("Roster sheet not found.");
+    
+    const lastCol = rosterSheet.getLastColumn();
+    const lastRow = rosterSheet.getLastRow();
+    if (lastRow < 2) throw new Error("Roster is empty.");
+    
+    const headers = rosterSheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim().toLowerCase());
+    const nameIdx = headers.indexOf('employee_name');
+    const shortIdx = headers.indexOf('person_short');
+    
+    let pinIdx = headers.indexOf('pin') !== -1 ? headers.indexOf('pin') : headers.indexOf('password');
+    
+    if (nameIdx === -1) throw new Error("Could not find Employee_Name column in Roster.");
+    
+    if (pinIdx === -1) {
+      pinIdx = lastCol;
+      rosterSheet.getRange(1, pinIdx + 1).setValue('PIN');
+    }
+    
+    const data = rosterSheet.getRange(2, 1, lastRow - 1, Math.max(lastCol, pinIdx + 1)).getValues();
+    
+    for (let i = 0; i < data.length; i++) {
+      const rName = data[i][nameIdx];
+      const rShort = shortIdx !== -1 ? data[i][shortIdx] : '';
+      
+      if (String(rName) === String(userIdentifier) || String(rShort) === String(userIdentifier)) {
+        rosterSheet.getRange(i + 2, pinIdx + 1).setValue("'" + pin);
+        return { success: true };
+      }
+    }
+    throw new Error("User not found in Roster.");
+  } catch (e) { throw new Error(e.message); }
 }
 
 // --- EOD REPORTING ---
@@ -147,13 +255,93 @@ function submitEOD(eodData, user) {
       <p><i>Note: Job summary data is recorded in the Work Tracker database.</i></p>
     `;
 
-    GmailApp.sendEmail(eodData.email, `EOD Report - ${user} - ${dateStr}`, "", { htmlBody: body, name: "Ops Hub EOD" });
+    GmailApp.sendEmail(eodData.email, `EOD Report - ${user} - ${dateStr}`, "", { 
+      htmlBody: body, 
+      name: "Jacob's EOD Bot",
+      replyTo: eodData.techEmail || "ops-team@centricfiber.com"
+    });
     return { success: true };
   } catch(e) { return { error: e.message }; }
 }
 
 // --- EXISTING CRUD ---
 function saveComm(c, oldName, user) { /* Same as previous version */ return true; }
-function logHistory(item, user) { const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('3_History'); if(sheet) sheet.appendRow([new Date(), user, item.id, item.addr, item.comm, item.mkt, item.typ]); return true; }
-function saveAppt(appt) { const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('2_Appointments'); sheet.appendRow([new Date().getTime(), appt.name, appt.address, appt.time, appt.status]); return true; }
+
+function getHistoryData() {
+  const localSS = SpreadsheetApp.getActiveSpreadsheet();
+  let histData = [];
+  let histSheet = localSS.getSheetByName('4_Work_Tracker');
+  if (histSheet && histSheet.getLastRow() > 1) {
+    histData = histSheet.getRange(2, 1, histSheet.getLastRow() - 1, 5).getValues().reverse().slice(0, 250).map(r => ({
+      time: Utilities.formatDate(new Date(r[0]), Session.getScriptTimeZone(), "MM/dd hh:mm a"),
+      user: r[1], comm: r[2], addr: r[3], typ: r[4]
+    }));
+  }
+  return histData;
+}
+
+function searchHistoryDB(term) {
+  const localSS = SpreadsheetApp.getActiveSpreadsheet();
+  let histData = [];
+  let histSheet = localSS.getSheetByName('4_Work_Tracker');
+  if (histSheet && histSheet.getLastRow() > 1) {
+    const rawData = histSheet.getRange(2, 1, histSheet.getLastRow() - 1, 5).getValues();
+    const t = term.toLowerCase();
+    for (let i = rawData.length - 1; i >= 0; i--) {
+       const r = rawData[i];
+       if (String(r[2]).toLowerCase().includes(t) || String(r[3]).toLowerCase().includes(t) || String(r[4]).toLowerCase().includes(t)) {
+          histData.push({ time: Utilities.formatDate(new Date(r[0]), Session.getScriptTimeZone(), "MM/dd hh:mm a"), user: r[1], comm: r[2], addr: r[3], typ: r[4] });
+       }
+       if (histData.length >= 50) break; // Limit deep search matches
+    }
+  }
+  return histData;
+}
+
+function saveAppt(appt, user) { 
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('2_Appointments'); 
+  const id = appt.id || new Date().getTime(); 
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0].toString() === id.toString()) {
+      sheet.getRange(i + 1, 1, 1, 9).setValues([[id, appt.name, appt.address, appt.time, appt.status, user || "Unknown", appt.comm || "", appt.jobType || "", appt.unit || ""]]);
+      return true;
+    }
+  }
+  sheet.appendRow([id, appt.name, appt.address, appt.time, appt.status, user || "Unknown", appt.comm || "", appt.jobType || "", appt.unit || ""]); 
+  return true; 
+}
+
+function updateApptStatus(id, status) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('2_Appointments');
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0].toString() === id.toString()) {
+      sheet.getRange(i + 1, 5).setValue(status);
+      return true;
+    }
+  }
+  return false;
+}
+
 function deleteAppt(id) { const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('2_Appointments'); const data = sheet.getDataRange().getValues(); for (let i = 1; i < data.length; i++) { if (data[i][0].toString() === id.toString()) { sheet.deleteRow(i + 1); return true; } } return false; }
+
+// --- FEEDBACK BACKLOG ---
+function submitFeedback(text, user) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('6_Feedback');
+    if (sheet) sheet.appendRow([new Date(), user || "Unknown", text]);
+
+    try {
+      const ownerEmail = Session.getEffectiveUser().getEmail(); // Identifies you as script owner
+      GmailApp.sendEmail(ownerEmail, `Centric Ops App Feedback from ${user || "Unknown"}`, `User: ${user || "Unknown"}\n\nFeedback:\n${text}`);
+    } catch(emailErr) { console.error("Email notification failed", emailErr); }
+
+    return { success: true };
+  } catch(e) { return { error: e.message }; }
+}
+
+// --- RUN THIS ONCE FROM THE EDITOR TO FORCE GMAIL PERMISSIONS ---
+function forceAuthorize() {
+  GmailApp.getInboxUnreadCount();
+}

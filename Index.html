@@ -3,13 +3,35 @@
 <head>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     /* --- EXECUTIVE GLASS DESIGN SYSTEM --- */
     :root {
       --bg-app: #f1f5f9; --bg-glass: rgba(255, 255, 255, 0.72); --border-glass: #e2e8f0;
       --text-main: #0f172a; --text-muted: #64748b; --shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.05);
       --shadow-hover: 0 15px 35px rgba(15, 23, 42, 0.1); --accent-active: #3b82f6;
+      --bg-card: rgba(255, 255, 255, 0.65); --bg-card-hover: #ffffff;
+      --bg-input: #ffffff; --bg-dock: rgba(255, 255, 255, 0.9);
+      --bg-modal: rgba(255, 255, 255, 0.95);
     }
+
+    body.dark-mode {
+      --bg-app: #0f172a; --bg-glass: rgba(30, 41, 59, 0.72); --border-glass: #334155;
+      --text-main: #f8fafc; --text-muted: #94a3b8; --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.5);
+      --shadow-hover: 0 15px 35px rgba(0, 0, 0, 0.6);
+      --bg-card: rgba(30, 41, 59, 0.65); --bg-card-hover: #1e293b;
+      --bg-input: #1e293b; --bg-dock: rgba(30, 41, 59, 0.9);
+      --bg-modal: rgba(30, 41, 59, 0.95);
+    }
+    body.dark-mode .bg-light { background-color: rgba(30,41,59,0.5) !important; color: var(--text-main) !important; }
+    body.dark-mode .text-dark { color: var(--text-main) !important; }
+    body.dark-mode .btn-light { background-color: #1e293b; border-color: #334155; color: var(--text-main); }
+    body.dark-mode .btn-light:hover { background-color: #334155; color: #fff; }
+    body.dark-mode .btn-outline-secondary { color: var(--text-muted); border-color: var(--border-glass); }
+    body.dark-mode .btn-outline-secondary:hover { background-color: #334155; color: #f8fafc; }
+    body.dark-mode .cal-day:hover { background: rgba(255,255,255,0.1); }
+    body.dark-mode .custom-table thead th { background: #1e293b; }
+    body.dark-mode .custom-table tbody tr:hover td { background: rgba(30,41,59,0.5); }
 
     body { background: var(--bg-app); height: 100vh; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--text-main); touch-action: pan-y; }
     .micro-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 2px; display: block; }
@@ -24,24 +46,105 @@
     .header-title { font-weight: 900; font-size: 1.2rem; letter-spacing: -0.5px; line-height: 1.1;}
     .header-date { font-weight: 700; font-size: 0.75rem; opacity: 0.8; letter-spacing: 0.5px; text-transform: uppercase;}
     
-    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
-    .cal-day { padding: 6px 0; border-radius: 8px; cursor: pointer; transition: 0.2s; font-size: 13px; font-weight: 600; color: var(--text-main); }
+    .calendar-popup { background: var(--bg-glass); backdrop-filter: blur(24px); border: 1px solid var(--border-glass); border-radius: 24px; box-shadow: var(--shadow-hover); position: fixed; top: 85px; right: 24px; z-index: 1002; width: 380px; padding: 24px; animation: springIn 0.3s; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; text-align: center; }
+    .cal-day { padding: 12px 0; border-radius: 10px; cursor: pointer; transition: 0.2s; font-size: 16px; font-weight: 600; color: var(--text-main); }
     .cal-day:hover { background: rgba(0,0,0,0.05); }
     .cal-today { background: var(--accent-active); color: white !important; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4); }
-    .cal-header-row div { font-size: 10px; font-weight: 800; color: var(--text-muted); }
+    .cal-header-row div { font-size: 12px; font-weight: 800; color: var(--text-muted); margin-bottom: 4px;}
 
     /* VIEWPORT & PANES */
     .app-viewport { height: 100vh; padding: 85px 20px 20px 20px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; align-content: flex-start; }
     .glass-pane { background: var(--bg-glass); backdrop-filter: blur(24px); border: 1px solid var(--border-glass); border-radius: 24px; padding: 24px; box-shadow: var(--shadow-soft); animation: springIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); flex: 1 1 320px; max-width: 420px; height: fit-content; max-height: calc(100vh - 100px); overflow-y: auto; position: relative;}
     .dock { display: none; }
 
+    /* DESKTOP SPECIFIC LAYOUT OVERRIDES */
+    .custom-table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--bg-input); border-radius: 16px; overflow: hidden; border: 1px solid var(--border-glass); box-shadow: var(--shadow-soft); }
+    .custom-table thead th { position: sticky; top: 0; z-index: 1; background: #f8fafc; padding: 16px; font-size: 11px; font-weight: 800; text-transform: uppercase; color: var(--text-muted); border-bottom: 2px solid var(--border-glass); letter-spacing: 0.5px; text-align: left; }
+    .custom-table tbody td { padding: 14px 16px; font-size: 0.95rem; color: var(--text-main); border-bottom: 1px solid var(--border-glass); vertical-align: middle; }
+    .custom-table tbody tr:last-child td { border-bottom: none; }
+    .custom-table tbody tr:hover td { background: #f1f5f9; }
+    .desktop-only { display: none; }
+
+    /* IPAD MASTER-DETAIL VIEW */
+    @media (min-width: 1025px) and (max-width: 1199px) {
+      body { overflow: hidden; } 
+      .app-viewport {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-auto-rows: max-content;
+        gap: 20px;
+        padding: 90px 24px 24px 24px;
+        height: 100vh;
+        overflow-y: auto;
+      }
+      .glass-pane {
+        display: flex !important; 
+        flex-direction: column;
+        max-width: none !important;
+        height: 100% !important;
+        margin: 0 !important;
+        max-height: none !important;
+      }
+      .dock { display: none !important; }
+      #pane-history { grid-column: 1; grid-row: 2; }
+      #pane-apps { grid-column: 1; grid-row: 1; }
+      #pane-tracker { grid-column: 2; grid-row: 1; }
+      #pane-tool { grid-column: 2; grid-row: 2; }
+      #pane-comm { grid-column: 1 / span 2; grid-row: 3; }
+      #pane-eod { grid-column: 2; grid-row: 3; }
+      #pane-admin { grid-column: 1 / span 2; grid-row: 4; }
+      .desktop-only { display: block; }
+      .mobile-only { display: none !important; }
+    }
+
+    /* DESKTOP COMMAND CENTER GRID */
+    @media (min-width: 1200px) {
+      body { overflow: hidden; } 
+      .app-viewport {
+        display: grid;
+        grid-template-columns: 360px 1fr 460px; 
+        grid-auto-rows: max-content;
+        gap: 24px;
+        padding: 90px 24px 24px 24px;
+        height: 100vh;
+        overflow-y: auto;
+      }
+      .glass-pane {
+        display: flex !important; 
+        flex-direction: column;
+        max-width: none !important;
+        height: 100% !important;
+        margin: 0 !important;
+        max-height: none !important;
+      }
+      .dock { display: none !important; }
+      
+      #pane-tracker { grid-column: 1; grid-row: 1 / span 3; }
+      #pane-apps { grid-column: 2; grid-row: 1; }
+      #pane-history { grid-column: 2; grid-row: 2; }
+      #pane-comm { grid-column: 2; grid-row: 3; }
+      #pane-tool { grid-column: 3; grid-row: 1; }
+      #pane-eod { grid-column: 3; grid-row: 2; }
+      #pane-admin { grid-column: 3; grid-row: 3; }
+
+      .desktop-only { display: block; }
+      .mobile-only { display: none !important; }
+
+      /* DENSE TABBED QR LAYOUT FOR DESKTOP */
+      .desktop-qr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .desktop-qr-grid > .qr-item { margin-bottom: 0 !important; }
+      #calixComb, #smxComb, .btn-group { grid-column: 1 / -1; }
+      #calixInd, #smxInd { display: contents; }
+    }
+
     /* MOBILE OVERRIDES */
     @media (max-width: 1024px) {
-      .app-viewport { display: block; height: 100vh; padding: 80px 15px 100px 15px; } 
+      .app-viewport { display: block; height: 100vh; padding: 80px 15px 120px 15px; } 
       .glass-pane { display: none; max-width: 100%; max-height: none; margin-bottom: 0; }
       .glass-pane.active-pane { display: block; }
-      /* 6 Item Scrollable Dock */
-      .dock { position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); width: 95%; max-width: 400px; background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(24px); border-radius: 30px; padding: 10px 15px; display: flex; justify-content: space-between; overflow-x: auto; border: 1px solid var(--border-glass); z-index: 1000; box-shadow: var(--shadow-hover); scrollbar-width: none; }
+      /* Scrollable Dock */
+      .dock { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); width: fit-content; max-width: 95%; background: var(--bg-dock); backdrop-filter: blur(24px); border-radius: 30px; padding: 10px 15px; display: flex; justify-content: center; gap: 12px; overflow-x: auto; border: 1px solid var(--border-glass); z-index: 1000; box-shadow: var(--shadow-hover); scrollbar-width: none; }
       .dock::-webkit-scrollbar { display: none; }
       
       /* DENSIFICATION FOR HISTORY & COMM */
@@ -53,38 +156,71 @@
       .dense-card .btn-sm { width: 28px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
     }
 
-    .dock-item { color: var(--text-muted); font-size: 1.3rem; cursor: pointer; transition: all 0.3s; padding: 5px 12px; border-radius: 15px; flex-shrink: 0; }
+    .dock-item { color: var(--text-muted); font-size: 1.4rem; cursor: pointer; transition: all 0.3s; padding: 8px 16px; border-radius: 16px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
     .dock-item:hover, .dock-item.active { color: white; background: var(--accent-active); transform: translateY(-4px); box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); }
 
-    .poly-card { background: rgba(255, 255, 255, 0.65); border-radius: 16px; padding: 16px; margin-bottom: 12px; border: 1px solid var(--border-glass); transition: all 0.2s; cursor: pointer; position: relative; }
-    .poly-card:hover { background: #ffffff; transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+    .poly-card { background: var(--bg-card); border-radius: 16px; padding: 16px; margin-bottom: 12px; border: 1px solid var(--border-glass); transition: all 0.2s; cursor: pointer; position: relative; }
+    .poly-card:hover { background: var(--bg-card-hover); transform: translateY(-2px); box-shadow: var(--shadow-hover); }
 
-    .form-control, .form-select { background: #ffffff !important; border: 1px solid var(--border-glass) !important; border-radius: 12px; color: var(--text-main) !important; padding: 8px 12px; font-weight: 500; font-size: 0.95rem; }
+    .form-control, .form-select { background: var(--bg-input) !important; border: 1px solid var(--border-glass) !important; border-radius: 12px; color: var(--text-main) !important; padding: 8px 12px; font-weight: 500; font-size: 0.95rem; }
     .btn-magic { background: linear-gradient(90deg, #4285F4, #8E24AA, #D81B60, #F4B400, #4285F4); background-size: 200% 200%; animation: shimmer 4s linear infinite; color: white; border: none; font-weight: 800; }
     
     .section-banner { display: flex; justify-content: space-between; align-items: center; color: white; padding: 8px 16px; border-radius: 8px; font-weight: 800; font-size: 11px; text-transform: uppercase; margin: 12px 0 8px 0; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: 0.2s; }
     .section-banner:hover { filter: brightness(1.1); transform: translateY(-1px); }
     .section-content { display: none; margin-bottom: 5px; } 
     
-    .qr-item { display: flex; align-items: center; justify-content: space-between; background: #fff; border-radius: 12px; padding: 8px 12px; margin-bottom: 6px; border: 1px solid var(--border-glass); box-shadow: 0 2px 5px rgba(0,0,0,0.02);}
-    .qr-img { width: 55px; height: 55px; border-radius: 6px; border: 1px solid #eee; }
+    .qr-item { display: flex; align-items: center; justify-content: space-between; background: var(--bg-input); border-radius: 12px; padding: 8px 12px; margin-bottom: 6px; border: 1px solid var(--border-glass); box-shadow: 0 2px 5px rgba(0,0,0,0.02);}
+    .qr-img { width: 55px; height: 55px; border-radius: 6px; border: 1px solid var(--border-glass); }
     .btn-copy-dense { font-size: 9px; font-weight: 800; padding: 2px 8px; border-radius: 4px; margin-top: 2px;}
 
     .status-pill { border-radius: 20px; padding: 4px 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; color: white; }
-    .filter-pill { cursor: pointer; border: 1px solid var(--border-glass); background: #ffffff; color: var(--text-muted); border-radius: 20px; padding: 4px 16px; font-size: 11px; font-weight: 800; }
+    .filter-pill { cursor: pointer; border: 1px solid var(--border-glass); background: var(--bg-input); color: var(--text-muted); border-radius: 20px; padding: 4px 16px; font-size: 11px; font-weight: 800; }
     .filter-pill.active { background: var(--text-main); color: #ffffff; border-color: var(--text-main); }
+    .form-select-pill { border-radius: 20px !important; padding: 4px 30px 4px 16px !important; font-size: 11px !important; font-weight: 800 !important; text-transform: uppercase; width: auto; display: inline-block; cursor: pointer; color: var(--text-muted) !important;}
+
+    .tech-tabs-wrapper { gap: 6px; padding-top: 10px; padding-bottom: 12px; border-bottom: 2px solid var(--border-glass); flex-wrap: wrap; }
+    .tech-tab { padding: 8px 4px; border-radius: 10px; font-size: 11px; font-weight: 800; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; transition: all 0.2s; border: 1px solid transparent; opacity: 0.85; flex: 1 1 calc(33% - 8px); }
+    .tech-tab.active { opacity: 1; transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.15); border-color: inherit; z-index: 2; position: relative; }
+    
+    @media (min-width: 1025px) {
+      .tech-tabs-wrapper { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+      .tech-tabs-wrapper::-webkit-scrollbar { display: none; }
+      .tech-tab { flex: 0 0 auto; padding: 6px 14px; }
+      .tech-name-short { display: none; }
+      .tech-name-full { display: inline; }
+    }
+    @media (max-width: 1024px) {
+      .tech-name-short { display: inline; }
+      .tech-name-full { display: none; }
+    }
 
     .loader-bg { background: var(--bg-app); position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: opacity 0.5s; }
     .progress-track { width: 250px; height: 6px; background: var(--border-glass); border-radius: 10px; overflow: hidden; margin-bottom: 15px; }
     .progress-fill { width: 0%; height: 100%; background: var(--accent-active); transition: width 0.3s ease; }
     
     .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(8px); z-index: 10000; display: none; justify-content: center; align-items: center; padding: 20px; opacity: 0; transition: opacity 0.3s; }
-    .modal-glass { background: rgba(255, 255, 255, 0.95); border: 1px solid #ffffff; border-radius: 24px; padding: 24px; width: 100%; max-width: 400px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); transform: scale(0.95); transition: transform 0.3s; }
+    .modal-glass { background: var(--bg-modal); border: 1px solid var(--border-glass); border-radius: 24px; padding: 24px; width: 100%; max-width: 400px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); transform: scale(0.95); transition: transform 0.3s; }
     .modal-overlay.show { display: flex; opacity: 1; }
     .modal-overlay.show .modal-glass { transform: scale(1); }
+    
+    #fabFeedback { position:fixed; bottom:100px; right:24px; width:56px; height:56px; z-index:1040; display:flex; justify-content:center; align-items:center; transition: transform 0.2s; }
+    #fabFeedback:hover { transform: scale(1.1); }
 
     @keyframes springIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes shimmer { 0% { background-position: 0% 50%; } 100% { background-position: -200% 50%; } }
+
+    /* IOS CALENDAR TIMELINE VIEW */
+    .timeline-wrapper { height: 380px; overflow-y: auto; position: relative; border-radius: 12px; border: 1px solid var(--border-glass); background: var(--bg-input); scrollbar-width: none; }
+    .timeline-wrapper::-webkit-scrollbar { display: none; }
+    .timeline-container { position: relative; height: 1080px; /* 18 hours (5am-10pm) * 60px */ }
+    .timeline-hour { height: 60px; border-bottom: 1px solid var(--border-glass); display: flex; align-items: flex-start; padding-left: 8px; box-sizing: border-box; }
+    .timeline-hour-text { font-size: 10px; font-weight: 800; color: var(--text-muted); position: relative; top: -8px; width: 45px; text-align: right; padding-right: 8px; }
+    .timeline-line { flex-grow: 1; border-top: 1px solid var(--bg-app); position: relative; top: -1px; }
+    .timeline-event { position: absolute; left: 55px; right: 10px; background: rgba(59, 130, 246, 0.08); border-left: 4px solid var(--accent-active); border-radius: 6px; padding: 4px 8px; overflow: hidden; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.03); box-sizing: border-box; }
+    .timeline-event:hover { filter: brightness(0.95); transform: translateY(-1px); z-index: 10; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2); }
+    .timeline-event-title { font-weight: 800; color: var(--text-main); font-size: 11px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.1; }
+    .timeline-event-time { font-size: 9px; font-weight: 700; color: var(--accent-active); margin-bottom: 1px; }
+    .timeline-event-addr { font-size: 9px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   </style>
 </head>
 <body>
@@ -114,14 +250,19 @@
       <div class="header-title">Centric Ops</div>
       <div class="header-date" id="headerDateDisplay"></div>
     </div>
-    <button class="btn btn-light rounded-circle shadow-sm" style="width:40px; height:40px; padding:0; display:flex; justify-content:center; align-items:center;" onclick="toggleCalendar()"><i class="bi bi-calendar3 text-primary fs-5"></i></button>
+    <div class="d-flex gap-2">
+      <button class="btn btn-light rounded-circle shadow-sm" style="width:40px; height:40px; padding:0; display:flex; justify-content:center; align-items:center;" onclick="refreshApp()" title="Refresh App"><i class="bi bi-arrow-clockwise text-primary fs-5"></i></button>
+      <button class="btn btn-light rounded-circle shadow-sm" style="width:40px; height:40px; padding:0; display:flex; justify-content:center; align-items:center;" onclick="switchPane('pane-eod')" title="End of Day Report"><i class="bi bi-send-check text-primary fs-5"></i></button>
+      <button class="btn btn-light rounded-circle shadow-sm" style="width:40px; height:40px; padding:0; display:flex; justify-content:center; align-items:center;" onclick="toggleDarkMode()" id="btnDarkMode" title="Toggle Dark Mode"><i class="bi bi-moon-stars text-primary fs-5"></i></button>
+      <button class="btn btn-light rounded-circle shadow-sm" style="width:40px; height:40px; padding:0; display:flex; justify-content:center; align-items:center;" onclick="toggleCalendar()"><i class="bi bi-calendar3 text-primary fs-5"></i></button>
+    </div>
   </div>
 
-  <div id="calendarWidget" class="poly-card glass-pane" style="display:none; position:fixed; top:75px; right:20px; z-index:1002; width:280px; padding:15px; flex:none; animation: springIn 0.3s;">
+  <div id="calendarWidget" class="calendar-popup" style="display:none;">
     <div class="d-flex justify-content-between align-items-center mb-3">
-      <button class="btn btn-sm btn-light rounded-circle shadow-sm px-2" onclick="changeMonth(-1)"><i class="bi bi-chevron-left text-muted"></i></button>
-      <div class="fw-bold" id="calMonthYear"></div>
-      <button class="btn btn-sm btn-light rounded-circle shadow-sm px-2" onclick="changeMonth(1)"><i class="bi bi-chevron-right text-muted"></i></button>
+      <button class="btn btn-light rounded-circle shadow-sm" style="width:36px; height:36px; padding:0;" onclick="changeMonth(-1)"><i class="bi bi-chevron-left text-muted"></i></button>
+      <div class="fw-bold fs-5" id="calMonthYear"></div>
+      <button class="btn btn-light rounded-circle shadow-sm" style="width:36px; height:36px; padding:0;" onclick="changeMonth(1)"><i class="bi bi-chevron-right text-muted"></i></button>
     </div>
     <div class="calendar-grid cal-header-row mb-2"><div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div></div>
     <div class="calendar-grid" id="calDays"></div>
@@ -130,16 +271,98 @@
   <div class="app-viewport" id="mainViewport">
     
     <div id="pane-apps" class="glass-pane active-pane">
-      <div class="d-flex justify-content-between align-items-center mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-2">
         <h4 class="mb-0"><i class="bi bi-calendar2-check me-2"></i>Schedule</h4>
-        <div id="displayTechId" class="badge bg-light text-dark border shadow-sm"></div>
+        <div id="displayTechId" class="badge bg-light text-dark border shadow-sm" style="cursor: pointer;" onclick="checkIdentity(true)" title="Change Identity"></div>
       </div>
+      <div id="techTabsContainer" class="mb-3 tech-tabs-wrapper" style="display:none;"></div>
       <div id="apptList"></div>
       <button class="btn btn-outline-secondary w-100 rounded-pill mt-2 fw-bold" onclick="openApptModal()">+ Add Task</button>
       
       <div class="text-center opacity-25 mt-5">
         <span class="micro-label" style="font-size:8px;">Crafted by</span>
         <div class="fw-bold" style="font-size:0.75rem; letter-spacing:1px; text-transform:uppercase;">Jacob Zamarripa</div>
+      </div>
+    </div>
+
+    <div id="pane-tracker" class="glass-pane">
+      <h4 class="mb-3"><i class="bi bi-clipboard-check me-2"></i>Work Tracker</h4>
+      <p class="small text-muted mb-3">Log your completed work for the active address.</p>
+      <input type="hidden" id="trackApptId">
+      
+      <div class="poly-card p-3 mb-3 bg-light" id="trackBanner" style="border-left: 5px solid var(--border-glass); transition: border-color 0.3s;">
+        <span class="micro-label">Current Job</span>
+        <div class="fw-bold fs-6 text-primary" id="trackAddr">Select an address from Schedule</div>
+        <div class="small text-muted" id="trackComm"></div>
+      </div>
+
+      <span class="micro-label">Job Type</span>
+      <select id="trackJobType" class="form-select mb-3" onchange="handleJobTypeChange()"></select>
+      
+      <div id="trackFiberFields" style="display:none;">
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <span class="micro-label">Light Level</span>
+            <input type="text" inputmode="decimal" id="trackLight" class="form-control" placeholder="e.g. -18.5">
+          </div>
+          <div class="col-6">
+            <span class="micro-label">Distance Jetted</span>
+            <input type="number" inputmode="numeric" pattern="[0-9]*" id="trackDistance" class="form-control" placeholder="e.g. 150">
+          </div>
+        </div>
+
+        <div class="row g-2 mb-3">
+          <div class="col-6">
+            <span class="micro-label">Tube / Splitter</span>
+            <select id="trackTubeColor" class="form-select"></select>
+          </div>
+          <div class="col-6">
+            <span class="micro-label">Port # / Fiber</span>
+            <select id="trackPortColor" class="form-select"></select>
+          </div>
+        </div>
+        
+        <span class="micro-label">Splice Count (s#)</span>
+        <input type="number" inputmode="numeric" pattern="[0-9]*" id="trackSplice" class="form-control mb-3" placeholder="e.g. 2">
+      </div>
+      
+      <div id="trackEquipmentFields" style="display:none;">
+        <button id="provPromptBtn" class="btn btn-sm btn-outline-primary w-100 rounded-pill mb-3 fw-bold" style="border-style: dashed;" onclick="jumpToProvisioning()"><i class="bi bi-qr-code-scan me-2"></i>Generate Provisioning QRs First</button>
+        
+        <div class="poly-card p-3 mb-3 bg-light border-primary border-opacity-25" style="border: 1px solid rgba(13, 110, 253, 0.15);">
+          <div class="fw-bold mb-3 text-primary" style="font-size: 0.85rem;"><i class="bi bi-router me-2"></i>Equipment Installed</div>
+          
+          <div class="mb-2">
+            <span class="micro-label">ONT / Main Router</span>
+            <input type="text" id="trackSerialOnt" class="form-control form-control-sm" placeholder="Scan or type ONT...">
+          </div>
+          
+          <div class="mb-2">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="micro-label mb-0">Mesh Nodes</span>
+              <button id="btnAddMesh" class="btn btn-sm btn-link py-0 px-1 text-decoration-none micro-label text-primary" onclick="addMeshField(event)">+ Add Mesh</button>
+            </div>
+            <input type="text" id="trackSerialMesh1" class="form-control form-control-sm mb-1" placeholder="Mesh 1 serial...">
+            <input type="text" id="trackSerialMesh2" class="form-control form-control-sm mb-1" placeholder="Mesh 2 serial..." style="display:none;">
+            <input type="text" id="trackSerialMesh3" class="form-control form-control-sm mb-1" placeholder="Mesh 3 serial..." style="display:none;">
+            <input type="text" id="trackSerialMesh4" class="form-control form-control-sm mb-1" placeholder="Mesh 4 serial..." style="display:none;">
+          </div>
+
+          <div>
+            <span class="micro-label">Doorbell</span>
+            <input type="text" id="trackSerialDoorbell" class="form-control form-control-sm" placeholder="Scan or type doorbell...">
+          </div>
+        </div>
+      </div>
+      
+      <span class="micro-label">Details / Notes</span>
+      <textarea id="trackNotes" class="form-control mb-3" rows="2" placeholder="Verified at NID..."></textarea>
+      
+      <button onclick="submitWorkTracker()" id="btnTrack" class="btn btn-primary w-100 rounded-pill py-2 fw-bold">Log Job</button>
+      
+      <div id="trackResult" style="display:none;" class="mt-3 text-center">
+        <div class="alert alert-success small fw-bold mb-2"><i class="bi bi-check-circle-fill me-1"></i> Job Logged Successfully</div>
+        <a id="trackFormLink" href="#" target="_blank" class="btn btn-outline-success btn-sm rounded-pill w-100 fw-bold">Open Pre-filled Google Form</a>
       </div>
     </div>
 
@@ -158,68 +381,56 @@
       <div id="qrResults" style="display:none;" class="mt-3 border-top pt-2">
         <div id="errorBox" class="alert alert-danger fw-bold small text-center" style="display:none;"></div>
         <div id="successBox" style="display:none;"></div>
-      </div>
-    </div>
-
-    <div id="pane-tracker" class="glass-pane">
-      <h4 class="mb-3"><i class="bi bi-clipboard-check me-2"></i>Work Tracker</h4>
-      <p class="small text-muted mb-3">Log your completed work for the active address.</p>
-      
-      <div class="poly-card p-3 mb-3 bg-light">
-        <span class="micro-label">Current Job</span>
-        <div class="fw-bold fs-6 text-primary" id="trackAddr">Select an address from Schedule</div>
-        <div class="small text-muted" id="trackComm"></div>
-      </div>
-
-      <span class="micro-label">Job Type</span>
-      <select id="trackJobType" class="form-select mb-3"></select>
-      
-      <div class="row g-2 mb-3">
-        <div class="col-6">
-          <span class="micro-label">Light Level</span>
-          <input type="text" inputmode="decimal" id="trackLight" class="form-control" placeholder="e.g. -18.5">
-        </div>
-        <div class="col-6">
-          <span class="micro-label">Distance Jetted</span>
-          <input type="number" inputmode="numeric" pattern="[0-9]*" id="trackDistance" class="form-control" placeholder="e.g. 150">
-        </div>
-      </div>
-
-      <div class="row g-2 mb-3">
-        <div class="col-6">
-          <span class="micro-label">Tube / Splitter</span>
-          <select id="trackTubeColor" class="form-select"></select>
-        </div>
-        <div class="col-6">
-          <span class="micro-label">Port # / Fiber</span>
-          <select id="trackPortColor" class="form-select"></select>
-        </div>
-      </div>
-      
-      <span class="micro-label">Splice Count (s#)</span>
-      <input type="number" inputmode="numeric" pattern="[0-9]*" id="trackSplice" class="form-control mb-3" placeholder="e.g. 2">
-      
-      <span class="micro-label">Details / Notes</span>
-      <textarea id="trackNotes" class="form-control mb-3" rows="2" placeholder="Verified at NID..."></textarea>
-      
-      <button onclick="submitWorkTracker()" id="btnTrack" class="btn btn-primary w-100 rounded-pill py-2 fw-bold">Log Job</button>
-      
-      <div id="trackResult" style="display:none;" class="mt-3 text-center">
-        <div class="alert alert-success small fw-bold mb-2"><i class="bi bi-check-circle-fill me-1"></i> Job Logged Successfully</div>
-        <a id="trackFormLink" href="#" target="_blank" class="btn btn-outline-success btn-sm rounded-pill w-100 fw-bold">Open Pre-filled Google Form</a>
+        
+        <button id="trackPromptBtn" class="btn btn-sm btn-outline-success w-100 rounded-pill mt-3 fw-bold" style="display:none; border-style: dashed;" onclick="jumpToTracker()"><i class="bi bi-clipboard-check me-2"></i>Log Installation in Tracker</button>
       </div>
     </div>
 
     <div id="pane-history" class="glass-pane">
       <div class="d-flex justify-content-between align-items-center mb-2">
-        <h4 class="mb-0"><i class="bi bi-clock-history me-2"></i>History</h4>
-        <select id="histFilter" class="form-select form-select-sm w-auto fw-bold text-primary border-primary" onchange="renderHistory()" style="padding: 4px 25px 4px 10px;">
+        <h4 class="mb-0"><i class="bi bi-clock-history me-2"></i>History<span id="historyDateDisplay" style="font-size: 0.9rem; font-weight: 500; margin-left: 8px; color: var(--text-muted);"></span></h4>
+        <div id="historyViewToggles" class="btn-group" style="display:none;">
+          <button class="btn btn-sm btn-primary" id="btnHistTable" onclick="switchHistoryView('table')"><i class="bi bi-list-ul"></i></button>
+          <button class="btn btn-sm btn-outline-primary" id="btnHistChart" onclick="switchHistoryView('chart')"><i class="bi bi-bar-chart-fill"></i></button>
+        </div>
+        <select id="histFilter" class="form-select form-select-sm w-auto fw-bold text-primary border-primary" onchange="renderHistory()" style="padding: 4px 25px 4px 10px; display: none;">
           <option value="mine">My Scans</option>
           <option value="all">All Scans</option>
         </select>
       </div>
-      <div class="micro-label mb-3 text-primary"><i class="bi bi-info-circle me-1"></i>Tap to instantly reload codes</div>
-      <div id="historyItems"></div>
+      <div id="teamStatusDesktop" class="desktop-only mb-3"></div>
+      <div id="historySearchContainer" style="display:none;">
+        <div class="d-flex gap-2 mb-3">
+          <input type="text" id="histSearch" class="form-control" placeholder="Search address, ID, community..." onkeyup="renderHistory()">
+          <select id="histGroupBy" class="form-select w-auto desktop-only text-primary fw-bold" onchange="renderHistory()" style="display:none;">
+            <option value="none">Group: None</option>
+            <option value="tech">Group: Tech</option>
+            <option value="type">Group: Type</option>
+            <option value="date">Group: Date</option>
+          </select>
+        </div>
+        <div class="micro-label mb-3 text-primary"><i class="bi bi-info-circle me-1"></i>Tap to instantly reload codes</div>
+      </div>
+      <div id="historyListWrapper">
+        <div id="historyItemsMobile" class="mobile-only"></div>
+        <div id="historyTableContainer" class="desktop-only overflow-auto" style="border-radius: 16px; max-height: calc(100vh - 200px);">
+          <table class="custom-table" id="historyTableDesktop">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Tech</th>
+                <th>Type</th>
+                <th>Address</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="historyAnalyticsContainer" class="overflow-auto" style="display:none; border-radius: 16px; max-height: calc(100vh - 200px); padding-right:4px;">
+        <div class="poly-card p-3 mb-3"><canvas id="chartType" style="max-height: 250px;"></canvas></div>
+        <div class="poly-card p-3"><canvas id="chartTech" style="max-height: 250px;"></canvas></div>
+      </div>
     </div>
 
     <div id="pane-comm" class="glass-pane">
@@ -227,14 +438,29 @@
         <h4 class="mb-0"><i class="bi bi-building me-2"></i>Communities</h4>
         <button class="btn btn-dark rounded-circle" style="width:38px;height:38px;padding:0;" onclick="openCommModal()"><i class="bi bi-plus"></i></button>
       </div>
-      <div class="d-flex gap-2 mb-4 overflow-auto pb-1" id="commFilters">
-        <button class="filter-pill active" onclick="applyCommFilter('All', this)">All</button>
-        <button class="filter-pill" onclick="applyCommFilter('SFU', this)">SFU</button>
-        <button class="filter-pill" onclick="applyCommFilter('MDU', this)">MDU</button>
-        <button class="filter-pill" onclick="applyCommFilter('TH', this)">TH</button>
+      <div class="d-flex gap-2 mb-3 overflow-auto pb-1" id="commFilters" style="scrollbar-width: none;">
+        <select id="commTypeFilter" class="form-select form-select-pill" onchange="applyCommFilter()"><option value="All">All Types</option></select>
+        <select id="commMktFilter" class="form-select form-select-pill" onchange="applyCommFilter()"><option value="All">All Markets</option></select>
       </div>
-      <input type="text" id="commSearch" class="form-control mb-4" placeholder="Search communities..." onkeyup="applyCommFilter(currentCommFilter)">
-      <div id="commCards"></div>
+      <input type="text" id="commSearch" class="form-control mb-4" placeholder="Search communities..." onkeyup="applyCommFilter()">
+      <div id="commCardsMobile" class="mobile-only"></div>
+      <div class="desktop-only overflow-auto" style="border-radius: 16px; max-height: calc(100vh - 280px);">
+        <table class="custom-table" id="commTableDesktop">
+          <thead>
+            <tr>
+              <th>Community</th>
+              <th>Market</th>
+              <th>Type</th>
+              <th>City</th>
+              <th>Zip</th>
+              <th>Location ID</th>
+              <th>VLAN</th>
+              <th class="text-end">Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
 
     <div id="pane-eod" class="glass-pane">
@@ -258,31 +484,81 @@
       <div id="eodSuccess" class="alert alert-success mt-3 small fw-bold text-center" style="display:none;">Report Sent!</div>
     </div>
 
+    <div id="pane-admin" class="glass-pane" style="display:none;">
+      <h4 class="mb-4"><i class="bi bi-shield-lock me-2"></i>Admin Panel</h4>
+      
+      <div id="adminLockScreen" class="text-center mt-5">
+        <i class="bi bi-lock-fill text-muted mb-3" style="font-size: 3rem;"></i>
+        <h6 class="fw-bold">Admin Access Locked</h6>
+        <p class="small text-muted mb-4">Please enter your 4-digit PIN.</p>
+        <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" id="adminPwdInput" class="form-control text-center mx-auto mb-3" style="max-width:200px; letter-spacing: 4px; font-size: 1.5rem;" placeholder="----" onkeydown="if(event.key === 'Enter') unlockAdmin()">
+        <button class="btn btn-primary rounded-pill fw-bold w-100" style="max-width:200px;" onclick="unlockAdmin()">Unlock</button>
+      </div>
+
+      <div id="adminContent" style="display:none;">
+        <h6 class="fw-bold text-primary mb-3">Recent Feedback</h6>
+        <div id="adminFeedbackList" class="overflow-auto" style="max-height: calc(100vh - 250px);"></div>
+      </div>
+    </div>
+
   </div>
+
+  <button id="fabFeedback" class="btn btn-warning text-dark rounded-circle shadow-lg" onclick="openFeedbackModal()" title="Submit Beta Feedback">
+    <i class="bi bi-chat-square-text-fill fs-4"></i>
+  </button>
 
   <div class="dock">
     <div class="dock-item active" onclick="switchPane('pane-apps', this)"><i class="bi bi-calendar-event"></i></div>
     <div class="dock-item" onclick="switchPane('pane-tracker', this)"><i class="bi bi-clipboard-check"></i></div>
     <div class="dock-item" onclick="switchPane('pane-tool', this)"><i class="bi bi-qr-code-scan"></i></div>
     <div class="dock-item" onclick="switchPane('pane-history', this)"><i class="bi bi-clock-history"></i></div>
-    <div class="dock-item" onclick="switchPane('pane-eod', this)"><i class="bi bi-send"></i></div>
     <div class="dock-item" onclick="switchPane('pane-comm', this)"><i class="bi bi-building"></i></div>
   </div>
 
   <script>
+    var isDarkMode = localStorage.getItem('centric_dark_mode') === 'true';
+    if (isDarkMode) document.body.classList.add('dark-mode');
+
     var APP_DATA = {};
-    var currentCommFilter = 'All';
     var loadingInterval;
     var pendingCommSave = null;
+    
+    function toProperCase(str) {
+      if (!str) return '';
+      return str.toString().toLowerCase().replace(/\b\w/g, function(char) { return char.toUpperCase(); });
+    }
+
+    function toggleDarkMode() {
+      var body = document.body;
+      body.classList.toggle('dark-mode');
+      var isDark = body.classList.contains('dark-mode');
+      localStorage.setItem('centric_dark_mode', isDark);
+      updateDarkModeIcon(isDark);
+    }
+    
+    function updateDarkModeIcon(isDark) {
+      var icon = document.querySelector('#btnDarkMode i');
+      if (!icon) return;
+      if (isDark) { icon.classList.remove('bi-moon-stars', 'text-primary'); icon.classList.add('bi-sun', 'text-warning'); } 
+      else { icon.classList.remove('bi-sun', 'text-warning'); icon.classList.add('bi-moon-stars', 'text-primary'); }
+    }
 
     var MARKET_COLORS = { "Austin": "#f59e0b", "Dallas/Fortworth": "#22c55e", "Florida": "#06b6d4", "Houston": "#f97316", "San Antonio E/NE": "#3b82f6", "San Antonio S/SW": "#4f46e5" };
     function getMktColor(mktName) { return MARKET_COLORS[mktName] || "#64748b"; }
 
     // --- CALENDAR LOGIC ---
     var currCalDate = new Date();
-    function initCalendar() { document.getElementById('headerDateDisplay').innerText = new Date().toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric'}); renderCalendar(currCalDate); }
-    function toggleCalendar() { var cal = document.getElementById('calendarWidget'); cal.style.display = cal.style.display === 'none' ? 'block' : 'none'; }
+    function initCalendar() { var d = new Date(); document.getElementById('headerDateDisplay').innerText = d.toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric'}); document.getElementById('historyDateDisplay').innerText = "- " + d.toLocaleDateString('en-US', {month:'short', day:'numeric'}); renderCalendar(currCalDate); }
+    function toggleCalendar() { var cal = document.getElementById('calendarWidget'); cal.style.display = (cal.style.display === 'none' || cal.style.display === '') ? 'block' : 'none'; }
     function changeMonth(dir) { currCalDate.setMonth(currCalDate.getMonth() + dir); renderCalendar(currCalDate); }
+    
+    // Close calendar when clicking outside
+    document.addEventListener('click', function(e) {
+      var cal = document.getElementById('calendarWidget');
+      var btn = document.querySelector('button[onclick="toggleCalendar()"]');
+      if (cal && cal.style.display === 'block' && !cal.contains(e.target) && (!btn || !btn.contains(e.target))) { cal.style.display = 'none'; }
+    });
+
     function renderCalendar(date) {
       document.getElementById('calMonthYear').innerText = date.toLocaleDateString('en-US', {month:'long', year:'numeric'});
       var firstDay = new Date(date.getFullYear(), date.getMonth(), 1).getDay(); var daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate(); var today = new Date(); var html = '';
@@ -293,22 +569,36 @@
 
     // --- SWIPE GESTURES ---
     var touchstartX = 0; var touchendX = 0;
-    var panesOrder = ['pane-apps', 'pane-tracker', 'pane-tool', 'pane-history', 'pane-eod', 'pane-comm'];
-    document.addEventListener('touchstart', function(e) { touchstartX = e.changedTouches[0].screenX; }, {passive: true});
-    document.addEventListener('touchend', function(e) { touchendX = e.changedTouches[0].screenX; handleSwipe(); }, {passive: true});
+    var touchstartY = 0; var touchendY = 0;
+    var panesOrder = ['pane-apps', 'pane-tracker', 'pane-tool', 'pane-history', 'pane-comm'];
+    document.addEventListener('touchstart', function(e) { touchstartX = e.changedTouches[0].screenX; touchstartY = e.changedTouches[0].screenY; }, {passive: true});
+    document.addEventListener('touchend', function(e) { touchendX = e.changedTouches[0].screenX; touchendY = e.changedTouches[0].screenY; handleSwipe(); }, {passive: true});
     function handleSwipe() {
       if (window.innerWidth > 1024) return; 
-      var diff = touchstartX - touchendX; if (Math.abs(diff) < 60) return; 
-      var currentIndex = 0;
-      for(var i=0; i<panesOrder.length; i++) { if(document.getElementById(panesOrder[i]).classList.contains('active-pane')) { currentIndex = i; break; } }
-      if (diff > 0 && currentIndex < panesOrder.length - 1) { switchPane(panesOrder[currentIndex + 1], document.querySelectorAll('.dock-item')[currentIndex + 1]); } 
-      else if (diff < 0 && currentIndex > 0) { switchPane(panesOrder[currentIndex - 1], document.querySelectorAll('.dock-item')[currentIndex - 1]); }
+      var diffX = touchstartX - touchendX; var diffY = Math.abs(touchstartY - touchendY);
+      if (Math.abs(diffX) < 120 || diffY > Math.abs(diffX)) return; 
+      var availablePanes = panesOrder;
+      var currentIndex = -1;
+      for(var i=0; i<availablePanes.length; i++) { if(document.getElementById(availablePanes[i]).classList.contains('active-pane')) { currentIndex = i; break; } }
+      if (currentIndex === -1) return;
+      var availableDockItems = Array.from(document.querySelectorAll('.dock-item')).filter(function(d) { return d.style.display !== 'none'; });
+      if (diffX > 0 && currentIndex < availablePanes.length - 1) { switchPane(availablePanes[currentIndex + 1], availableDockItems[currentIndex + 1]); } 
+      else if (diffX < 0 && currentIndex > 0) { switchPane(availablePanes[currentIndex - 1], availableDockItems[currentIndex - 1]); }
     }
 
-    window.onload = function() {
+    window.onload = refreshApp;
+
+    function refreshApp() {
+      var loader = document.getElementById('loader');
+      loader.style.display = 'flex';
+      setTimeout(function() { loader.style.opacity = '1'; }, 10);
+      document.getElementById('loaderProgress').style.width = '0%';
+
+      updateDarkModeIcon(isDarkMode);
       initCalendar();
       var texts = ["Connecting to Master DB...", "Verifying Credentials...", "Parsing Operations Roster...", "Mounting Executive Glass UI..."];
       var progress = 0; var textIdx = 0;
+      if (loadingInterval) clearInterval(loadingInterval);
       loadingInterval = setInterval(function() {
         progress += Math.random() * 15; if(progress > 85) progress = 85; 
         document.getElementById('loaderProgress').style.width = progress + '%';
@@ -322,13 +612,30 @@
           setTimeout(function() { document.getElementById('loader').style.opacity = '0'; setTimeout(function() { document.getElementById('loader').style.display = 'none'; checkIdentity(); }, 500); }, 400);
 
           APP_DATA = data;
-          renderAppointments(); renderHistory(); renderCommunities(data.communities);
+          APP_DATA.fullHistoryLoaded = false;
+          historyLoaded = true; // 48 hours preloaded automatically
+          document.getElementById('historySearchContainer').style.display = 'block';
+          
+          renderTechTabs();
+          renderAppointments(); 
+          renderHistory(); 
+          renderCommunities(data.communities);
           fillDropdown('mkt', data.markets, "Market"); fillDropdown('typ', data.types, "Type");
           
+          var tFilter = document.getElementById('commTypeFilter');
+          tFilter.innerHTML = '<option value="All">All Types</option>';
+          data.types.forEach(function(t) { tFilter.innerHTML += '<option value="' + t + '">' + t + '</option>'; });
+
+          var mFilter = document.getElementById('commMktFilter');
+          mFilter.innerHTML = '<option value="All">All Markets</option>';
+          data.markets.forEach(function(m) { mFilter.innerHTML += '<option value="' + m + '">' + m + '</option>'; });
+
           // Populate Form Data
           var jtSelect = document.getElementById('trackJobType');
           jtSelect.innerHTML = '';
           data.jobTypes.forEach(function(jt) { jtSelect.innerHTML += '<option value="' + jt + '">' + jt + '</option>'; });
+          
+          handleJobTypeChange(); // Initialize the dynamic fields based on first loaded Job Type
           
           var colors = ["Blue", "Orange", "Green", "Brown", "Slate", "White", "Red", "Black", "Yellow", "Violet", "Rose", "Aqua"];
           var tubeSel = document.getElementById('trackTubeColor');
@@ -349,55 +656,516 @@
 
           var pSelect = document.getElementById('eodPartner');
           pSelect.innerHTML = '<option value="">-- None --</option>';
-          data.roster.forEach(function(emp) { pSelect.innerHTML += '<option value="' + emp.name + '">' + emp.name + '</option>'; });
+          data.roster.forEach(function(emp) { pSelect.innerHTML += '<option value="' + emp.name + '">' + toProperCase(emp.name) + '</option>'; });
 
         })
         .withFailureHandler(function(err) { document.getElementById('loaderText').innerHTML = '<span class="text-danger fw-bold">' + err.message + '</span>'; clearInterval(loadingInterval); }).getAppData();
-    };
-
-    function checkIdentity() {
-      var techId = localStorage.getItem('centric_tech_id');
-      if (!techId) {
-        var html = '<h5 class="fw-bold mb-3 text-primary">Welcome to Field Ops</h5><p class="small text-muted mb-4">Please verify your identity against the Master Roster.</p><select id="inputTechId" class="form-select mb-4"><option value="">-- Employee Roster --</option>';
-        APP_DATA.roster.forEach(function(emp) { html += '<option value="' + (emp.short ? emp.short : emp.name) + '">' + emp.name + ' (' + emp.role + ')</option>'; });
-        html += '</select><button class="btn btn-primary w-100 rounded-pill fw-bold" onclick="saveIdentity()">Save Identity</button>';
-        document.getElementById('modalContent').innerHTML = html; document.getElementById('modalOverlay').classList.add('show');
-      } else { document.getElementById('displayTechId').innerText = techId; }
     }
-    function saveIdentity() { var val = document.getElementById('inputTechId').value; if(!val) return alert("Please select your name."); localStorage.setItem('centric_tech_id', val); document.getElementById('displayTechId').innerText = val; closeModal(); renderHistory(); }
+
+    function checkIdentity(force = false) {
+      var techId = localStorage.getItem('centric_tech_id');
+      if (!techId || force) {
+        var html = '<h5 class="fw-bold mb-3 text-primary">' + (force ? 'Change Identity' : 'Welcome to Field Ops') + '</h5><p class="small text-muted mb-4">Please verify your identity against the Master Roster.</p><select id="inputTechId" class="form-select mb-4"><option value="">-- Employee Roster --</option>';
+        APP_DATA.roster.forEach(function(emp) { html += '<option value="' + (emp.short ? emp.short : emp.name) + '" ' + (techId === (emp.short ? emp.short : emp.name) ? 'selected' : '') + '>' + toProperCase(emp.name) + ' (' + emp.role + ')</option>'; });
+        html += '</select>';
+        if (force) { html += '<div class="d-flex gap-2"><button class="btn btn-outline-secondary w-50 rounded-pill fw-bold" onclick="closeModal()">Cancel</button><button class="btn btn-primary w-50 rounded-pill fw-bold" onclick="processIdentitySelection(' + force + ')">Next</button></div>'; }
+        else { html += '<button class="btn btn-primary w-100 rounded-pill fw-bold" onclick="processIdentitySelection(' + force + ')">Next</button>'; }
+        document.getElementById('modalContent').innerHTML = html; document.getElementById('modalOverlay').classList.add('show');
+      } else { 
+        document.getElementById('displayTechId').innerHTML = toProperCase(techId) + ' <i class="bi bi-pencil-fill ms-1 opacity-50"></i>'; 
+        toggleAdminFeatures();
+      }
+    }
+    
+    var selectedIdentityVal = '';
+
+    function processIdentitySelection(force) {
+      var val = document.getElementById('inputTechId').value; 
+      if(!val) return alert("Please select your name."); 
+      selectedIdentityVal = val;
+      
+      var emp = APP_DATA.roster.find(function(e) { return (e.short ? e.short : e.name) === val || e.name === val; });
+      var existingPin = emp ? emp.password : '';
+
+      if (existingPin) {
+        var html = '<h5 class="fw-bold mb-3 text-primary"><i class="bi bi-lock-fill me-2"></i>Enter PIN</h5><p class="small text-muted mb-4">Please enter your 4-digit PIN to verify your identity.</p><input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" id="verifyPinInput" class="form-control text-center mx-auto mb-4" style="max-width:200px; letter-spacing: 4px; font-size: 1.5rem;" placeholder="----"><div class="d-flex gap-2"><button class="btn btn-outline-secondary w-50 rounded-pill fw-bold" onclick="checkIdentity(' + force + ')">Back</button><button class="btn btn-primary w-50 rounded-pill fw-bold" onclick="verifyIdentityPin(\'' + existingPin + '\')">Verify</button></div>';
+        document.getElementById('modalContent').innerHTML = html;
+      } else {
+        var html = '<h5 class="fw-bold mb-3 text-primary"><i class="bi bi-key-fill me-2"></i>Create PIN</h5><div class="alert alert-warning small py-2 px-3 mb-3 text-start" style="line-height: 1.3;"><b>Disclaimer:</b> Please do NOT use a sensitive PIN or one you use elsewhere (like a bank). This is a simple, unsecure 4-digit PIN that administrators will be able to see.</div><p class="small text-muted mb-3">Create a 4-digit PIN to protect your identity.</p><input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" id="createPinInput" class="form-control text-center mx-auto mb-4" style="max-width:200px; letter-spacing: 4px; font-size: 1.5rem;" placeholder="----"><div class="d-flex gap-2"><button class="btn btn-outline-secondary w-50 rounded-pill fw-bold" onclick="checkIdentity(' + force + ')">Back</button><button class="btn btn-primary w-50 rounded-pill fw-bold" id="btnCreatePin" onclick="createIdentityPin()">Save PIN</button></div>';
+        document.getElementById('modalContent').innerHTML = html;
+      }
+    }
+
+    function verifyIdentityPin(expectedPin) {
+      var enteredPin = document.getElementById('verifyPinInput').value;
+      if (enteredPin === expectedPin) { finalizeIdentitySave(); } 
+      else { alert("Incorrect PIN."); }
+    }
+
+    function createIdentityPin() {
+      var newPin = document.getElementById('createPinInput').value;
+      if (!newPin || newPin.length !== 4 || !/^\d{4}$/.test(newPin)) { return alert("Please enter a valid 4-digit PIN."); }
+      
+      var btn = document.getElementById('btnCreatePin');
+      btn.innerText = "Saving...";
+      
+      google.script.run.withSuccessHandler(function() {
+        var emp = APP_DATA.roster.find(function(e) { return (e.short ? e.short : e.name) === selectedIdentityVal || e.name === selectedIdentityVal; });
+        if (emp) emp.password = newPin;
+        finalizeIdentitySave();
+      }).withFailureHandler(function(err) {
+        alert("Failed to save PIN: " + err.message);
+        btn.innerText = "Save PIN";
+      }).updateUserPin(selectedIdentityVal, newPin);
+    }
+
+    function finalizeIdentitySave() { 
+      var val = selectedIdentityVal;
+      var oldId = localStorage.getItem('centric_tech_id'); 
+      if (oldId && oldId !== val) { google.script.run.logIdentityChange(oldId, val); } 
+      localStorage.setItem('centric_tech_id', val); 
+      document.getElementById('displayTechId').innerHTML = toProperCase(val) + ' <i class="bi bi-pencil-fill ms-1 opacity-50"></i>'; 
+      closeModal(); 
+      renderTechTabs();
+      renderAppointments();
+      renderHistory(); 
+      toggleAdminFeatures();
+    }
+
+    function toggleAdminFeatures() { // This function is called on identity change
+      var isMgr = isManager();
+      var paneAdmin = document.getElementById('pane-admin');
+      var fab = document.getElementById('fabFeedback');
+      var fabIcon = fab ? fab.querySelector('i') : null;
+
+      function restoreFabDefault() {
+        if (fab && fabIcon) {
+          fab.onclick = openFeedbackModal;
+          fab.title = "Submit Beta Feedback";
+          if (fab.classList.contains('btn-primary')) fab.classList.replace('btn-primary', 'btn-warning');
+          fabIcon.className = 'bi bi-chat-square-text-fill fs-4';
+        }
+      }
+
+      if (isMgr) {
+        if (paneAdmin) { 
+          paneAdmin.style.display = ''; 
+          adminUnlocked = false;
+          var lockScreen = document.getElementById('adminLockScreen');
+          var contentScreen = document.getElementById('adminContent');
+          if(lockScreen) lockScreen.style.display = 'block';
+          if(contentScreen) contentScreen.style.display = 'none';
+          renderFeedback(); 
+        }
+        
+        if (window.innerWidth <= 1024) { // Mobile Admin FAB
+          if (fab && fabIcon) {
+            fab.onclick = function() { switchPane('pane-admin', null); };
+            fab.title = "Open Admin Panel";
+            if (fab.classList.contains('btn-warning')) fab.classList.replace('btn-warning', 'btn-primary');
+            fabIcon.className = 'bi bi-shield-lock fs-4';
+          }
+        } else { // Desktop Admin FAB
+          restoreFabDefault();
+        }
+      } else {
+        if (paneAdmin) paneAdmin.style.display = 'none';
+        restoreFabDefault(); // Non-Admin FAB
+      }
+    }
+
+    var adminUnlocked = false;
+    function unlockAdmin() {
+      var pwd = document.getElementById('adminPwdInput').value;
+      var techId = getTechId();
+      var emp = APP_DATA.roster ? APP_DATA.roster.find(function(e) { return (e.short ? e.short : e.name) === techId || e.name === techId; }) : null;
+      var expectedPwd = (emp && emp.password) ? emp.password : '1234'; // Default fallback
+
+      if (pwd === expectedPwd) {
+        adminUnlocked = true;
+        document.getElementById('adminLockScreen').style.display = 'none';
+        document.getElementById('adminContent').style.display = 'block';
+        document.getElementById('adminPwdInput').value = '';
+        showNewFeedbackLog(); // Show new feedback popups ONLY after unlocking
+      } else {
+        alert('Incorrect password.');
+      }
+    }
+
+    function showNewFeedbackLog() {
+      if (!isManager() || !APP_DATA.feedback || APP_DATA.feedback.length === 0) return;
+      const lastSeenTimestamp = parseInt(localStorage.getItem('centric_last_seen_feedback') || '0');
+      const newFeedback = APP_DATA.feedback.filter(function(fb) { return fb.timestamp > lastSeenTimestamp; });
+
+      if (newFeedback.length > 0) {
+        let html = '<h5 class="fw-bold mb-1"><i class="bi bi-bell-fill text-primary me-2"></i>New Feedback Received</h5><p class="small text-muted mb-4">Here\'s what\'s new since you last checked in.</p><div class="overflow-auto mb-4" style="max-height: 40vh;">';
+        newFeedback.forEach(function(fb) { html += '<div class="poly-card p-3 mb-2"><div class="d-flex justify-content-between mb-1"><span class="fw-bold text-primary" style="font-size:12px;">' + toProperCase(fb.user) + '</span><span class="micro-label">' + fb.time + '</span></div><div class="small">' + fb.text + '</div></div>'; });
+        html += '</div><button class="btn btn-primary w-100 rounded-pill fw-bold" onclick="dismissNewFeedbackLog()">Got it, thanks!</button>';
+        document.getElementById('modalContent').innerHTML = html; document.getElementById('modalOverlay').classList.add('show');
+      }
+    }
+
+    function dismissNewFeedbackLog() {
+      if (APP_DATA.feedback && APP_DATA.feedback.length > 0) { const latestTimestamp = APP_DATA.feedback[0].timestamp; if (latestTimestamp) localStorage.setItem('centric_last_seen_feedback', latestTimestamp); }
+      closeModal();
+    }
+
+    function renderFeedback() {
+      var container = document.getElementById('adminFeedbackList');
+      if (!container) return;
+      var fbs = APP_DATA.feedback || [];
+      if (fbs.length === 0) { container.innerHTML = '<div class="micro-label text-center mt-4">No feedback found.</div>'; return; }
+      var html = '';
+      fbs.forEach(function(fb) { html += '<div class="poly-card p-3 mb-2"><div class="d-flex justify-content-between mb-1"><span class="fw-bold text-primary" style="font-size:12px;">' + toProperCase(fb.user) + '</span><span class="micro-label">' + fb.time + '</span></div><div class="small">' + fb.text + '</div></div>'; });
+      container.innerHTML = html;
+    }
+    
     function getTechId() { return localStorage.getItem('centric_tech_id') || 'Unknown'; }
+    
+    function isManager() {
+      var id = getTechId();
+      var emp = APP_DATA.roster ? APP_DATA.roster.find(function(e) { return (e.short ? e.short : e.name) === id || e.name === id; }) : null;
+      if (emp && emp.role) {
+        var r = emp.role.toLowerCase();
+        return r.includes('admin') || r.includes('manager');
+      }
+      return false;
+    }
+
+    function getTechEmail() { 
+      var id = getTechId(); 
+      var emp = APP_DATA.roster ? APP_DATA.roster.find(function(e) { return (e.short ? e.short : e.name) === id; }) : null; 
+      return emp && emp.email ? emp.email : ''; 
+    }
     function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); }
 
+    // --- WORKFLOW BRIDGES ---
+    function jumpToProvisioning() { switchPane('pane-tool', document.querySelector('.dock-item[onclick*="pane-tool"]')); }
+    function jumpToTracker() { switchPane('pane-tracker', document.querySelector('.dock-item[onclick*="pane-tracker"]')); }
+
     function switchPane(id, el) {
-      if(window.innerWidth > 1024) return;
-      document.querySelectorAll('.glass-pane').forEach(function(p) { p.classList.remove('active-pane'); });
-      document.querySelectorAll('.dock-item').forEach(function(d) { d.classList.remove('active'); });
-      document.getElementById(id).classList.add('active-pane'); el.classList.add('active');
-      window.scrollTo(0,0);
-      // Ensure the active dock item is fully visible horizontally
-      el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      if (window.innerWidth <= 1024) {
+        document.querySelectorAll('.glass-pane').forEach(function(p) { p.classList.remove('active-pane'); });
+        document.querySelectorAll('.dock-item').forEach(function(d) { d.classList.remove('active'); });
+        document.getElementById(id).classList.add('active-pane'); 
+        if(el) el.classList.add('active');
+        window.scrollTo(0,0);
+        if(el) el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      } else {
+        var target = document.getElementById(id);
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        var origBorder = target.style.border;
+        target.style.border = "2px solid var(--accent-active)";
+        setTimeout(function() { target.style.border = origBorder; }, 2000);
+      }
+    }
+
+    // --- MANAGER TABS LOGIC ---
+    window.selectedTechFilter = 'All';
+    function renderTechTabs() {
+      var container = document.getElementById('techTabsContainer');
+      if (!isManager()) { container.style.display = 'none'; return; }
+      container.style.display = 'flex';
+
+      var techMap = {};
+      APP_DATA.roster.forEach(function(e) { 
+        var id = e.short || e.name; 
+        techMap[id] = e.name; 
+      });
+      var techs = Object.keys(techMap).sort();
+
+      var fiberColors = [
+        { bg: '#3b82f6', fg: '#fff' }, { bg: '#f97316', fg: '#fff' }, { bg: '#22c55e', fg: '#fff' },
+        { bg: '#8b4513', fg: '#fff' }, { bg: '#64748b', fg: '#fff' }, { bg: '#ffffff', fg: '#000' },
+        { bg: '#ef4444', fg: '#fff' }, { bg: '#000000', fg: '#fff' }, { bg: '#eab308', fg: '#000' },
+        { bg: '#8b5cf6', fg: '#fff' }, { bg: '#f43f5e', fg: '#fff' }, { bg: '#06b6d4', fg: '#000' }
+      ];
+
+      var html = '<div class="tech-tab ' + (window.selectedTechFilter === 'All' ? 'active' : '') + '" data-tech="All" onclick="selectTechFilter(\'All\')" style="background:#000000; color:#ffffff; border-color:#000000;">All</div>';
+      
+      techs.forEach(function(t, i) {
+        var color = fiberColors[i % fiberColors.length];
+        var border = color.bg === '#ffffff' ? 'var(--border-glass)' : color.bg;
+        var isActive = window.selectedTechFilter === t ? 'active' : '';
+        var fullName = toProperCase(techMap[t] || t);
+        var displayTechShort = fullName.split(' ')[0]; // Compact first name only
+        html += '<div class="tech-tab ' + isActive + '" data-tech="' + t + '" onclick="selectTechFilter(\'' + t + '\')" style="background:' + color.bg + '; color:' + color.fg + '; border-color:' + border + ';" title="' + fullName + '"><span class="tech-name-short">' + displayTechShort + '</span><span class="tech-name-full">' + fullName + '</span></div>';
+      });
+      container.innerHTML = html;
+    }
+
+    function selectTechFilter(tech) {
+      window.selectedTechFilter = tech;
+      var tabs = document.querySelectorAll('.tech-tab');
+      tabs.forEach(function(t) {
+        if (t.getAttribute('data-tech') === tech) t.classList.add('active');
+        else t.classList.remove('active');
+      });
+      
+      renderAppointments();
+      renderHistory();
+    }
+
+    function parseApptTime(a) {
+      if (a.rawDate && a.rawTime) return { date: new Date(a.rawDate + 'T' + a.rawTime + ':00'), mins: a.durMins || 60 };
+      var now = new Date();
+      var m = a.time ? a.time.match(/(\d+)\/(\d+)\s*•\s*(\d+):(\d+)\s*(AM|PM)/i) : null;
+      if (m) {
+        var mo = parseInt(m[1]) - 1, d = parseInt(m[2]), h = parseInt(m[3]), min = parseInt(m[4]), ampm = m[5].toUpperCase();
+        if (ampm === 'PM' && h < 12) h += 12;
+        if (ampm === 'AM' && h === 12) h = 0;
+        return { date: new Date(now.getFullYear(), mo, d, h, min), mins: 60 };
+      }
+      return { date: now, mins: 60 };
     }
 
     function renderAppointments() {
       var list = document.getElementById('apptList');
-      if (!APP_DATA.appointments.length) { list.innerHTML = '<div class="micro-label text-center mt-4">No appointments.</div>'; return; }
-      var html = '';
-      APP_DATA.appointments.forEach(function(a) {
-        html += '<div class="poly-card"><div style="position:absolute; right:12px; top:12px; cursor:pointer;" class="text-danger opacity-50" onclick="deleteAppt(\'' + a.id + '\')"><i class="bi bi-trash-fill"></i></div><div onclick="loadActiveJob(\'' + a.address + '\')"><div class="fw-bold pe-4">' + a.name + '</div><div class="micro-label" style="color:var(--accent-active);">' + a.time + '</div><div class="small text-muted">' + a.address + '</div></div></div>';
+      var appts = APP_DATA.appointments || [];
+      
+      if (!isManager()) { appts = appts.filter(function(a) { return a.user === getTechId(); }); } 
+      else if (window.selectedTechFilter !== 'All') { appts = appts.filter(function(a) { return a.user === window.selectedTechFilter; }); }
+
+      if (!appts.length) { list.innerHTML = '<div class="micro-label text-center mt-4">No appointments found.</div>'; return; }
+      
+      appts.sort(function(a, b) { return parseApptTime(a).date.getTime() - parseApptTime(b).date.getTime(); });
+
+      var html = '<div class="timeline-wrapper" id="timelineWrapper"><div class="timeline-container">';
+      for (var i = 5; i <= 22; i++) { var displayHour = i === 0 ? '12 AM' : (i < 12 ? i + ' AM' : (i === 12 ? '12 PM' : (i - 12) + ' PM')); html += '<div class="timeline-hour"><div class="timeline-hour-text">' + displayHour + '</div><div class="timeline-line"></div></div>'; }
+
+      appts.forEach(function(a) {
+        var parsed = parseApptTime(a); var dt = parsed.date; var dur = parsed.mins;
+        var top = ((dt.getHours() - 5) * 60) + dt.getMinutes(); var height = dur; // 1 min = 1px exact mapping
+        var escAddr = (a.address || "").replace(/'/g, "\\'");
+        var escComm = (a.comm || "").replace(/'/g, "\\'");
+        var escUnit = (a.unit || "").replace(/'/g, "\\'");
+        var escJobType = (a.jobType || "").replace(/'/g, "\\'");
+        
+        var isLogged = a.status === 'Logged';
+        var now = new Date();
+        var endTime = new Date(dt.getTime() + dur * 60000);
+        var isPassed = !isLogged && now > endTime;
+        
+        var bgCol = 'rgba(59, 130, 246, 0.08)';
+        var bdrCol = 'var(--accent-active)';
+        var timeCol = 'var(--accent-active)';
+        
+        if (isLogged) { bgCol = 'rgba(34, 197, 94, 0.08)'; bdrCol = '#22c55e'; timeCol = '#22c55e'; }
+        else if (isPassed) { bgCol = 'rgba(239, 68, 68, 0.08)'; bdrCol = '#ef4444'; timeCol = '#ef4444'; }
+        
+        html += '<div class="timeline-event" style="top:' + top + 'px; height:' + height + 'px; background:' + bgCol + '; border-left: 4px solid ' + bdrCol + ';" onclick="loadActiveJob(\'' + escAddr + '\', \'' + escComm + '\', \'' + escUnit + '\', \'' + escJobType + '\', \'' + a.id + '\')">';
+        html += '<div style="position:absolute; right:4px; top:4px; display:flex; gap:8px;" onclick="event.stopPropagation()">';
+        html += '<div style="cursor:pointer;" class="text-primary opacity-50" onclick="openApptModal(\'' + a.id + '\')"><i class="bi bi-pencil-fill"></i></div>';
+        html += '<div style="cursor:pointer;" class="text-danger opacity-50" onclick="deleteAppt(\'' + a.id + '\')"><i class="bi bi-trash-fill"></i></div>';
+        html += '</div>';
+        
+        var techBadge = '';
+        if (isManager() && window.selectedTechFilter === 'All' && a.user) { techBadge = '<span class="badge bg-secondary ms-2" style="font-size:8px;">' + toProperCase(a.user) + '</span>'; }
+        html += '<div class="timeline-event-title pe-4 d-flex align-items-center">' + a.name + techBadge + '</div>';
+        
+        if (height >= 30) { html += '<div class="timeline-event-time" style="color:' + timeCol + ';">' + a.time + '</div>'; }
+        if (height >= 50) { html += '<div class="timeline-event-addr">' + a.address + '</div>'; }
+        html += '</div>';
       });
+      html += '</div></div>';
       list.innerHTML = html;
+
+      setTimeout(function() {
+        var firstEvent = document.querySelector('.timeline-event');
+        if (firstEvent) { var wrapper = document.getElementById('timelineWrapper'); wrapper.scrollTop = Math.max(0, parseInt(firstEvent.style.top) - 60); }
+      }, 100);
+    }
+
+    var historyLoaded = false;
+    function fetchHistory() {
+      var btn = document.getElementById('btnLoadHistory');
+      if(btn) btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Loading...';
+      google.script.run.withSuccessHandler(function(data) {
+        APP_DATA.history = data; 
+        APP_DATA.fullHistoryLoaded = true;
+        renderHistory();
+      }).withFailureHandler(function(err) { if(btn) btn.innerText = "Error Loading. Try Again."; }).getHistoryData();
     }
 
     function renderHistory() {
-      var container = document.getElementById('historyItems'); var histArray = APP_DATA.history || [];
-      if (document.getElementById('histFilter').value === 'mine') histArray = histArray.filter(function(h) { return h.user === getTechId(); });
-      if(!histArray || histArray.length === 0) { container.innerHTML = '<div class="micro-label text-center mt-4">No activity found.</div>'; return; }
-      var html = '';
+      if (!historyLoaded) return;
+      var mContainer = document.getElementById('historyItemsMobile'); 
+      var dContainer = document.querySelector('#historyTableDesktop tbody');
+      var histArray = APP_DATA.history || [];
+      
+      var isMgr = isManager();
+      var filterEl = document.getElementById('histFilter');
+      var toggleEl = document.getElementById('historyViewToggles');
+      var groupEl = document.getElementById('histGroupBy');
+      
+      if (isMgr) {
+        filterEl.style.display = 'none';
+        if(toggleEl) toggleEl.style.display = 'inline-flex';
+        if(groupEl) groupEl.style.display = 'inline-block';
+        if (window.selectedTechFilter && window.selectedTechFilter !== 'All') {
+          histArray = histArray.filter(function(h) { return h.user === window.selectedTechFilter; });
+        }
+      } else {
+        filterEl.style.display = 'none';
+        if(toggleEl) toggleEl.style.display = 'none';
+        if(groupEl) groupEl.style.display = 'none';
+        histArray = histArray.filter(function(h) { return h.user === getTechId(); });
+      }
+
+      var term = document.getElementById('histSearch') ? document.getElementById('histSearch').value.toLowerCase() : '';
+      if (term) histArray = histArray.filter(function(h) { return (h.addr && h.addr.toLowerCase().includes(term)) || (h.comm && h.comm.toLowerCase().includes(term)) || (h.user && h.user.toLowerCase().includes(term)); });
+      
+      // Generate Team Status Summary for the Manager Rail
+      var d = new Date(); var mm = String(d.getMonth() + 1).padStart(2, '0'); var dd = String(d.getDate()).padStart(2, '0');
+      var todayMatch = mm + '/' + dd; var counts = {}; var total = 0;
+      (APP_DATA.history||[]).forEach(function(h) { if(h.time.startsWith(todayMatch)) { counts[h.user] = (counts[h.user]||0) + 1; total++; } });
+      var teamDiv = document.getElementById('teamStatusDesktop');
+      if(teamDiv) {
+        if(isMgr) {
+          var label = window.selectedTechFilter === 'All' ? 'Team Activity Today' : toProperCase(window.selectedTechFilter) + "'s Activity Today";
+          var statsText = window.selectedTechFilter === 'All' ? total + ' total jobs logged by ' + Object.keys(counts).length + ' techs' : total + ' total jobs logged';
+          teamDiv.innerHTML = '<div class="p-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 rounded"><div class="fw-bold text-primary mb-1"><i class="bi bi-people-fill me-2"></i>' + label + '</div><div class="text-dark small fw-bold">' + statsText + '</div></div>';
+          teamDiv.style.display = 'block';
+        } else {
+          teamDiv.innerHTML = '';
+          teamDiv.style.display = 'none';
+        }
+      }
+      
+      var groupBy = groupEl ? groupEl.value : 'none';
+      if (isMgr && groupBy !== 'none') {
+        histArray = histArray.slice(); 
+        if (groupBy === 'tech') histArray.sort(function(a,b) { return (a.user||'').localeCompare(b.user||''); });
+        if (groupBy === 'type') histArray.sort(function(a,b) { return (a.typ||'').localeCompare(b.typ||''); });
+        if (groupBy === 'date') histArray.sort(function(a,b) { return (b.time.split(' ')[0]).localeCompare(a.time.split(' ')[0]); });
+      }
+      
+      if(!histArray || histArray.length === 0) { 
+        var emptyMsg = term ? '<div class="micro-label text-center mt-4 mb-3">Not in recent history.</div><button class="btn btn-outline-primary w-100 rounded-pill fw-bold" onclick="searchDatabase(\'' + term.replace(/'/g, "\\'") + '\')"><i class="bi bi-search me-2"></i>Search Database</button>' : '<div class="micro-label text-center mt-4 mb-3">No recent activity found.</div><button id="btnLoadHistory" class="btn btn-outline-primary w-100 rounded-pill fw-bold" onclick="fetchHistory()"><i class="bi bi-cloud-download me-2"></i>Load Older History</button>';
+        if(mContainer) mContainer.innerHTML = emptyMsg;
+        if(dContainer) dContainer.innerHTML = '<tr><td colspan="4" class="text-center">' + emptyMsg + '</td></tr>';
+        return; 
+      }
+      var mHtml = ''; var dHtml = ''; var currentGroup = '';
       histArray.forEach(function(h) {
-        var originalIndex = APP_DATA.history.findIndex(function(item) { return item.id === h.id && item.time === h.time; });
-        html += '<div class="poly-card dense-card" onclick="reloadHistoryItem(' + originalIndex + ')"><div class="d-flex justify-content-between mb-2"><span class="status-pill" style="background-color:' + getMktColor(h.mkt) + ';">' + h.mkt + '</span><span class="micro-label">' + h.time + '</span></div><div class="data-font fs-6">' + h.id + '</div><div class="small text-muted mt-1">' + h.addr + '</div></div>';
+        var originalIndex = APP_DATA.history.findIndex(function(item) { return item.addr === h.addr && item.time === h.time; });
+        var mkt = APP_DATA.communities[h.comm] ? APP_DATA.communities[h.comm].market : 'Unknown';
+        var jobType = h.typ || 'Unknown';
+        
+        if (isMgr && groupBy !== 'none') {
+          var gVal = '';
+          if (groupBy === 'tech') gVal = toProperCase(h.user) || 'Unknown';
+          if (groupBy === 'type') gVal = jobType;
+          if (groupBy === 'date') gVal = h.time.split(' ')[0];
+          
+          if (gVal !== currentGroup) {
+            dHtml += '<tr><td colspan="4" class="pt-3 pb-2 border-bottom-0" style="font-size:12px; font-weight:800; text-transform:uppercase; background:var(--bg-app); color:var(--text-main);"><i class="bi bi-collection me-2 text-primary"></i>' + gVal + '</td></tr>';
+            currentGroup = gVal;
+          }
+        }
+
+        mHtml += '<div class="poly-card dense-card" onclick="reloadHistoryItem(' + originalIndex + ')"><div class="d-flex justify-content-between mb-2"><span class="status-pill" style="background-color:' + getMktColor(mkt) + ';">' + mkt + '</span><span class="micro-label">' + h.time + '</span></div><div class="data-font fs-6">' + h.comm + '</div><div class="small text-muted mt-1">' + h.addr + '<br><span style="font-size:10px; color:var(--accent-active);">' + toProperCase(h.user) + '</span></div></div>';
+        
+        dHtml += '<tr style="cursor:pointer;" onclick="reloadHistoryItem(' + originalIndex + ')">';
+        dHtml += '<td class="text-muted" style="font-size:11px; font-weight:700; white-space:nowrap;">' + h.time + '</td>';
+        dHtml += '<td class="fw-bold" style="font-size:12px; color:var(--accent-active);">' + toProperCase(h.user) + '</td>';
+        dHtml += '<td><span class="status-pill" style="background-color:' + getMktColor(mkt) + ';">' + jobType + '</span></td>';
+        dHtml += '<td class="small fw-bold">' + h.addr + '<div class="micro-label mt-1">' + h.comm + '</div></td>';
+        dHtml += '</tr>';
       });
-      container.innerHTML = html;
+      if (!term && !APP_DATA.fullHistoryLoaded) {
+        var loadBtn = '<button id="btnLoadHistory" class="btn btn-outline-secondary btn-sm w-100 rounded-pill fw-bold mt-3" onclick="fetchHistory()"><i class="bi bi-cloud-download me-2"></i>Load Older History</button>';
+        mHtml += loadBtn;
+        dHtml += '<tr><td colspan="4">' + loadBtn + '</td></tr>';
+      }
+      if(mContainer) mContainer.innerHTML = mHtml;
+      if(dContainer) dContainer.innerHTML = dHtml;
+      
+      if (isMgr) updateAnalytics(histArray);
+    }
+
+    // --- ANALYTICS DASHBOARD LOGIC ---
+    function switchHistoryView(view) {
+      if (view === 'table') {
+        document.getElementById('historyListWrapper').style.display = 'block';
+        document.getElementById('historyAnalyticsContainer').style.display = 'none';
+        document.getElementById('btnHistTable').classList.replace('btn-outline-primary', 'btn-primary');
+        document.getElementById('btnHistChart').classList.replace('btn-primary', 'btn-outline-primary');
+      } else {
+        document.getElementById('historyListWrapper').style.display = 'none';
+        document.getElementById('historyAnalyticsContainer').style.display = 'block';
+        document.getElementById('btnHistTable').classList.replace('btn-primary', 'btn-outline-primary');
+        document.getElementById('btnHistChart').classList.replace('btn-outline-primary', 'btn-primary');
+      }
+    }
+
+    var chartTechInst = null; var chartTypeInst = null;
+    function updateAnalytics(data) {
+      if (!isManager() || !window.Chart) return;
+      Chart.defaults.color = '#64748b'; Chart.defaults.font.family = 'inherit';
+      var typeCounts = {}; var techCounts = {};
+      
+      data.forEach(function(d) {
+        var t = d.typ || 'Unknown'; var u = toProperCase(d.user) || 'Unknown';
+        typeCounts[t] = (typeCounts[t] || 0) + 1;
+        techCounts[u] = (techCounts[u] || 0) + 1;
+      });
+      
+      var fiberColors = ['#3b82f6', '#f97316', '#22c55e', '#8b4513', '#64748b', '#cbd5e1', '#ef4444', '#000000', '#eab308', '#8b5cf6', '#f43f5e', '#06b6d4'];
+      
+      var ctxType = document.getElementById('chartType');
+      if (ctxType) {
+        if (chartTypeInst) chartTypeInst.destroy();
+        chartTypeInst = new Chart(ctxType, {
+          type: 'doughnut',
+          data: { labels: Object.keys(typeCounts), datasets: [{ data: Object.values(typeCounts), backgroundColor: fiberColors, borderWidth: 0 }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels:{ font:{size:10} } }, title: { display: true, text: 'Jobs by Type', font: {size: 14, weight: 800} } } }
+        });
+      }
+      
+      var ctxTech = document.getElementById('chartTech');
+      if (ctxTech) {
+        if (chartTechInst) chartTechInst.destroy();
+        chartTechInst = new Chart(ctxTech, {
+          type: 'bar',
+          data: { labels: Object.keys(techCounts), datasets: [{ label: 'Jobs Logged', data: Object.values(techCounts), backgroundColor: 'rgba(59, 130, 246, 0.8)', borderRadius: 4 }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: true, text: 'Jobs by Technician', font: {size: 14, weight: 800} } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+        });
+      }
+    }
+
+    function searchDatabase(term) {
+      var mContainer = document.getElementById('historyItemsMobile');
+      var dContainer = document.querySelector('#historyTableDesktop tbody');
+      var loadMsg = '<div class="text-center mt-4"><span class="spinner-border spinner-border-sm text-primary mb-2"></span><div class="micro-label">Searching Database...</div></div>';
+      if(mContainer) mContainer.innerHTML = loadMsg;
+      if(dContainer) dContainer.innerHTML = '<tr><td colspan="4">' + loadMsg + '</td></tr>';
+      google.script.run.withSuccessHandler(function(matches) {
+        if(matches.length === 0) { 
+          if(mContainer) mContainer.innerHTML = '<div class="micro-label text-center mt-4 text-danger">No matches found in database.</div>'; 
+          if(dContainer) dContainer.innerHTML = '<tr><td colspan="4" class="text-center micro-label text-danger">No matches found in database.</td></tr>';
+          setTimeout(renderHistory, 3000); return; 
+        }
+        var existingKeys = new Set(APP_DATA.history.map(function(h) { return h.time + '_' + h.addr; }));
+        matches.forEach(function(m) { if (!existingKeys.has(m.time + '_' + m.addr)) APP_DATA.history.push(m); });
+        renderHistory();
+      }).withFailureHandler(function(err) { alert("Search failed: " + err.message); renderHistory(); }).searchHistoryDB(term);
+    }
+
+    function regenQR(addr, commName) {
+      var cData = APP_DATA.communities[commName];
+      if (!cData) return alert("Community data not found.");
+      if(window.innerWidth <= 1024) switchPane('pane-tool', document.querySelector('.dock-item[onclick*="pane-tool"]'));
+      else { document.getElementById('pane-tool').scrollIntoView({behavior: 'smooth'}); document.getElementById('pane-tool').classList.add('shadow-lg'); setTimeout(()=>document.getElementById('pane-tool').classList.remove('shadow-lg'), 1000); }
+      document.getElementById('mkt').value = cData.market;
+      document.getElementById('typ').value = cData.type;
+      filterComms();
+      setTimeout(function() {
+        document.getElementById('comm').value = commName;
+        document.getElementById('addr').value = addr;
+        document.getElementById('unit').value = "";
+        calculateProvisioning(true);
+      }, 150);
     }
 
     function reloadHistoryItem(index) {
@@ -408,47 +1176,213 @@
       loadActiveJob(item.addr, item.comm); 
     }
 
-    function loadActiveJob(addr, commName) {
-      document.getElementById('addr').value = addr; document.getElementById('unit').value = "";
-      document.getElementById('trackAddr').innerText = addr;
-      document.getElementById('trackComm').innerText = commName || "Select Community in Provisioning";
+    function loadActiveJob(addr, commName, unit, jobType, apptId) {
+      document.getElementById('addr').value = addr || "";
+      document.getElementById('unit').value = unit || "";
+      document.getElementById('trackAddr').innerText = addr || "No Address Provided";
+      var trackApptIdEl = document.getElementById('trackApptId');
+      if(trackApptIdEl) trackApptIdEl.value = apptId || "";
+
+      if (commName && APP_DATA.communities[commName]) {
+        var cData = APP_DATA.communities[commName];
+        document.getElementById('mkt').value = cData.market;
+        document.getElementById('typ').value = cData.type;
+        filterComms();
+        setTimeout(function() { document.getElementById('comm').value = commName; }, 100);
+        document.getElementById('trackComm').innerText = commName;
+        var banner = document.getElementById('trackBanner');
+        if (banner) banner.style.borderLeftColor = getMktColor(cData.market);
+      } else {
+        document.getElementById('trackComm').innerText = commName || "Select Community in Provisioning";
+      }
+
+      if (jobType) {
+        var jtSelect = document.getElementById('trackJobType');
+        for(var i=0; i<jtSelect.options.length; i++) {
+           if(jtSelect.options[i].value === jobType) { jtSelect.selectedIndex = i; break; }
+        }
+        handleJobTypeChange();
+      }
+
       if(window.innerWidth <= 1024) switchPane('pane-tool', document.querySelector('.dock-item[onclick*="pane-tool"]'));
     }
 
+    function addMeshField(e) {
+      if(e) e.preventDefault();
+      var m2 = document.getElementById('meshGroup2');
+      var m3 = document.getElementById('meshGroup3');
+      var m4 = document.getElementById('meshGroup4');
+      if (m2.style.display === 'none') { m2.style.display = 'flex'; return; }
+      if (m3.style.display === 'none') { m3.style.display = 'flex'; return; }
+      if (m4.style.display === 'none') { m4.style.display = 'flex'; document.getElementById('btnAddMesh').style.display = 'none'; }
+    }
+
+    function handleJobTypeChange() {
+      var type = document.getElementById('trackJobType').value;
+      var showFiber = ["Fiber Blow", "Hard Down", "Trouble Ticket", "Fiber Blow + Install", "Performed Maintenance"].includes(type);
+      var showEquipment = type.includes("Install"); 
+
+      document.getElementById('trackFiberFields').style.display = showFiber ? "block" : "none";
+      document.getElementById('trackEquipmentFields').style.display = showEquipment ? "block" : "none";
+      
+      // Toggle the Workflow Bridge Button
+      var provPrompt = document.getElementById('provPromptBtn');
+      if (provPrompt) provPrompt.style.display = showEquipment ? "block" : "none";
+
+      // Clear out fields if hidden so we don't accidentally submit irrelevant data
+      if (!showFiber) {
+         document.getElementById('trackLight').value = ''; document.getElementById('trackDistance').value = '';
+         document.getElementById('trackTubeColor').value = ''; document.getElementById('trackPortColor').value = '';
+         document.getElementById('trackSplice').value = '';
+      }
+      if (!showEquipment) { 
+         document.getElementById('trackSerialOnt').value = '';
+         document.getElementById('trackSerialMesh1').value = '';
+         document.getElementById('trackSerialMesh2').value = '';
+         document.getElementById('trackSerialMesh3').value = '';
+         document.getElementById('trackSerialMesh4').value = '';
+         document.getElementById('trackSerialDoorbell').value = '';
+         document.getElementById('meshGroup2').style.display = 'none';
+         document.getElementById('meshGroup3').style.display = 'none';
+         document.getElementById('meshGroup4').style.display = 'none';
+         document.getElementById('btnAddMesh').style.display = 'inline-block';
+      }
+    }
+
     // --- WORK TRACKER & EOD ---
+    function getCombinedSerials() {
+      var serials = [];
+      var ont = document.getElementById('trackSerialOnt').value.trim().toUpperCase();
+      var m1 = document.getElementById('trackSerialMesh1').value.trim().toUpperCase();
+      var m2 = document.getElementById('trackSerialMesh2').value.trim().toUpperCase();
+      var m3 = document.getElementById('trackSerialMesh3').value.trim().toUpperCase();
+      var m4 = document.getElementById('trackSerialMesh4').value.trim().toUpperCase();
+      var db = document.getElementById('trackSerialDoorbell').value.trim().toUpperCase();
+      
+      if(ont) serials.push("ONT: " + ont);
+      if(m1) serials.push("Mesh 1: " + m1);
+      if(m2) serials.push("Mesh 2: " + m2);
+      if(m3) serials.push("Mesh 3: " + m3);
+      if(m4) serials.push("Mesh 4: " + m4);
+      if(db) serials.push("Doorbell: " + db);
+      
+      return serials.join(" | ");
+    }
+
     function submitWorkTracker() {
       var btn = document.getElementById('btnTrack');
       var jobData = { 
+        apptId: document.getElementById('trackApptId') ? document.getElementById('trackApptId').value : "",
         addr: document.getElementById('trackAddr').innerText, 
         comm: document.getElementById('comm').value, 
         type: document.getElementById('trackJobType').value,
-        light: document.getElementById('trackLight').value || "",
-        distance: document.getElementById('trackDistance').value || "",
-        tubeColor: document.getElementById('trackTubeColor').value || "",
-        portColor: document.getElementById('trackPortColor').value || "",
-        splice: document.getElementById('trackSplice').value || "0", 
-        notes: document.getElementById('trackNotes').value || "Completed." 
+        light: document.getElementById('trackLight').value,
+        distance: document.getElementById('trackDistance').value,
+        tubeColor: document.getElementById('trackTubeColor').value,
+        portColor: document.getElementById('trackPortColor').value,
+        splice: document.getElementById('trackSplice').value,
+        serial: getCombinedSerials(),
+        notes: document.getElementById('trackNotes').value
       };
       if(!jobData.comm || jobData.comm === "") return alert("Please select the Community in the Provisioning tab first.");
+      
+      // Smart Validation
+      var requiresFiber = (jobData.type === "Fiber Blow" || jobData.type === "Fiber Blow + Install");
+      var requiresEquipment = jobData.type.includes("Install"); 
+      var requiresNote = ["Home Not Ready", "Trouble Ticket", "Refered to Maintenance", "Performed Maintenance", "Not Live"].includes(jobData.type);
+
+      if (requiresFiber && (!jobData.light || !jobData.distance || !jobData.tubeColor || !jobData.portColor || !jobData.splice)) {
+        return alert("Please fill out all Fiber Data fields (Light, Distance, Tube, Port, Splice) for this job type.");
+      }
+      
+      if (requiresEquipment) {
+        var ont = document.getElementById('trackSerialOnt').value.trim().toUpperCase();
+        var m1 = document.getElementById('trackSerialMesh1').value.trim().toUpperCase();
+        var m2 = document.getElementById('trackSerialMesh2').value.trim().toUpperCase();
+        var m3 = document.getElementById('trackSerialMesh3').value.trim().toUpperCase();
+        var m4 = document.getElementById('trackSerialMesh4').value.trim().toUpperCase();
+        var db = document.getElementById('trackSerialDoorbell').value.trim().toUpperCase();
+        var totalEquipment = [ont, m1, m2, m3, m4, db].filter(Boolean).length;
+        
+        if (jobData.type === "Mesh Install" && !m1 && !m2 && !m3 && !m4) return alert("Please provide at least one Mesh Serial.");
+        if (jobData.type === "Doorbell Install" && !db) return alert("Please provide a Doorbell Serial.");
+        if ((jobData.type === "Install" || jobData.type === "Fiber Blow + Install") && totalEquipment === 0) {
+          return alert("Please provide at least one Equipment Serial (ONT, Mesh, or Doorbell) for this installation.");
+        }
+      }
+
+      if (requiresNote && !jobData.notes) return alert("Please provide details/notes for this job type.");
+
       btn.innerText = "Logging...";
+      document.getElementById('trackResult').style.display = 'none';
       google.script.run.withSuccessHandler(function(res){
          btn.innerText = "Log Job";
          if(res.error) return alert(res.error);
          document.getElementById('trackFormLink').href = res.url;
          document.getElementById('trackResult').style.display = 'block';
+         clearWorkTracker();
+         setTimeout(function() {
+           document.getElementById('trackResult').style.display = 'none';
+         }, 5000);
       }).logWorkTracker(jobData, getTechId());
+    }
+
+    function clearWorkTracker() {
+      // Reset Header Details
+      document.getElementById('trackAddr').innerText = "Select an address from Schedule";
+      document.getElementById('trackComm').innerText = "";
+      if(document.getElementById('trackApptId')) document.getElementById('trackApptId').value = "";
+      
+      var banner = document.getElementById('trackBanner');
+      if (banner) banner.style.borderLeftColor = 'var(--border-glass)';
+      
+      // Reset Form Fields
+      document.getElementById('trackJobType').selectedIndex = 0;
+      document.getElementById('trackLight').value = '';
+      document.getElementById('trackDistance').value = '';
+      document.getElementById('trackTubeColor').value = '';
+      document.getElementById('trackPortColor').value = '';
+      document.getElementById('trackSplice').value = '';
+      document.getElementById('trackSerialOnt').value = '';
+      document.getElementById('trackSerialMesh1').value = '';
+      document.getElementById('trackSerialMesh2').value = '';
+      document.getElementById('trackSerialMesh3').value = '';
+      document.getElementById('trackSerialMesh4').value = '';
+      document.getElementById('trackSerialDoorbell').value = '';
+      document.getElementById('trackNotes').value = '';
+      
+      // Trigger UI recalculation (hides specific elements based on the now-reset job type)
+      handleJobTypeChange();
     }
 
     function sendEOD() {
       var btn = document.getElementById('btnEod');
-      var eodData = { partner: document.getElementById('eodPartner').value, leadHours: document.getElementById('eodMyHours').value, partnerHours: document.getElementById('eodPartnerHours').value, mileage: document.getElementById('eodMileage').value, email: document.getElementById('eodEmail').value };
+      var eodData = { 
+        partner: document.getElementById('eodPartner').value, 
+        leadHours: document.getElementById('eodMyHours').value, 
+        partnerHours: document.getElementById('eodPartnerHours').value, 
+        mileage: document.getElementById('eodMileage').value, 
+        email: document.getElementById('eodEmail').value,
+        techEmail: getTechEmail()
+      };
       if(!eodData.leadHours || !eodData.mileage || !eodData.email) return alert("Hours, Mileage, and Email are required.");
+      
+      if(!confirm("Are you sure you want to submit your End of Day report?\n\nPlease double check that you logged all of your completed jobs in the Work Tracker.")) return;
+      
       btn.innerText = "Sending...";
       google.script.run.withSuccessHandler(function(res){
          btn.innerText = "Send EOD Report";
          if(res.error) return alert("Failed: " + res.error);
          document.getElementById('eodSuccess').style.display = 'block';
          setTimeout(function(){ document.getElementById('eodSuccess').style.display = 'none'; }, 3000);
+         
+         // Reset form fields
+         document.getElementById('eodPartner').value = '';
+         document.getElementById('eodMyHours').value = '';
+         document.getElementById('eodPartnerHours').value = '';
+         document.getElementById('eodMileage').value = '';
+         
+         alert("Your End of Day report has been successfully sent!");
       }).submitEOD(eodData, getTechId());
     }
 
@@ -520,7 +1454,7 @@
       var c = pendingCommSave.c; var oldId = pendingCommSave.oldId;
       
       if(oldId && oldId !== c.name) delete APP_DATA.communities[oldId];
-      APP_DATA.communities[c.name] = c; applyCommFilter(currentCommFilter); closeModal(); 
+      APP_DATA.communities[c.name] = c; applyCommFilter(); closeModal(); 
       google.script.run.saveComm(c, oldId, getTechId()); 
       pendingCommSave = null;
     }
@@ -544,16 +1478,52 @@
       document.getElementById('modalContent').innerHTML = html; document.getElementById('modalOverlay').classList.add('show'); 
     }
 
-    function applyCommFilter(val, el) { currentCommFilter = val; if(el) { document.querySelectorAll('.filter-pill').forEach(function(b){ b.classList.remove('active'); }); el.classList.add('active'); } var term = document.getElementById('commSearch').value.toLowerCase(), filtered = []; Object.keys(APP_DATA.communities).forEach(function(k) { var c = APP_DATA.communities[k]; if ((c.name.toLowerCase().includes(term) || c.market.toLowerCase().includes(term)) && (val === 'All' || c.type.toUpperCase() === val)) filtered.push(c); }); renderCommunities(filtered); }
+    function applyCommFilter() { 
+      var typeVal = document.getElementById('commTypeFilter').value;
+      var mktVal = document.getElementById('commMktFilter').value;
+      var term = document.getElementById('commSearch').value.toLowerCase();
+      var filtered = []; 
+      Object.keys(APP_DATA.communities).forEach(function(k) { 
+        var c = APP_DATA.communities[k]; 
+        var matchType = (typeVal === 'All' || c.type.toUpperCase() === typeVal.toUpperCase());
+        var matchMkt = (mktVal === 'All' || c.market.toUpperCase() === mktVal.toUpperCase());
+        if ((c.name.toLowerCase().includes(term) || c.market.toLowerCase().includes(term)) && matchType && matchMkt) filtered.push(c); 
+      }); 
+      renderCommunities(filtered); 
+    }
     
     function renderCommunities(arr) { 
-      var cBox = document.getElementById('commCards'); if (!arr) return; if (!Array.isArray(arr)) arr = Object.values(arr); var html = ''; 
-      arr.slice(0,25).forEach(function(c) { 
+      var mBox = document.getElementById('commCardsMobile'); 
+      var dBox = document.querySelector('#commTableDesktop tbody');
+      if (!arr) return; if (!Array.isArray(arr)) arr = Object.values(arr); 
+      var mHtml = ''; var dHtml = ''; 
+      
+      // Sort by Market then Name for grouping on Desktop
+      arr.sort(function(a, b) { return a.market.localeCompare(b.market) || a.name.localeCompare(b.name); });
+      
+      var currentMarket = '';
+      arr.forEach(function(c) { 
         var icon = c.type === 'MDU' ? 'bi-building' : (c.type === 'TH' ? 'bi-houses' : 'bi-house'); var mColor = getMktColor(c.market);
-        // Delete button intentionally removed as requested
-        html += '<div class="poly-card dense-card d-flex justify-content-between align-items-center"><div><div class="fw-bold"><i class="bi ' + icon + ' me-2 text-muted"></i>' + c.name + '</div><div class="micro-label mt-2"><span class="status-pill me-2" style="background-color:' + mColor + ';">' + c.market + '</span>' + c.type + ' • ID: ' + (c.locationId||'N/A') + '</div></div><div><button class="btn btn-sm btn-light rounded-circle shadow-sm text-muted" onclick="openCommModal(\'' + escape(c.name) + '\')"><i class="bi bi-pencil"></i></button></div></div>'; 
+        mHtml += '<div class="poly-card dense-card d-flex justify-content-between align-items-center"><div><div class="fw-bold"><i class="bi ' + icon + ' me-2 text-muted"></i>' + c.name + '</div><div class="micro-label mt-2"><span class="status-pill me-2" style="background-color:' + mColor + ';">' + c.market + '</span>' + c.type + ' • ID: ' + (c.locationId||'N/A') + '</div></div><div><button class="btn btn-sm btn-light rounded-circle shadow-sm text-muted" onclick="openCommModal(\'' + escape(c.name) + '\')"><i class="bi bi-pencil"></i></button></div></div>'; 
+        
+        if (c.market !== currentMarket) {
+          dHtml += '<tr><td colspan="8" class="pt-3 pb-2 border-bottom-0" style="font-size:14px; font-weight:800; text-transform:uppercase; background:var(--bg-app); color:var(--text-main);"><i class="bi bi-geo-alt-fill me-2" style="color:' + mColor + ';"></i>' + c.market + '</td></tr>';
+          currentMarket = c.market;
+        }
+        
+        dHtml += '<tr>';
+        dHtml += '<td><div class="fw-bold"><i class="bi ' + icon + ' me-2 text-muted"></i>' + c.name + '</div></td>';
+        dHtml += '<td><span class="status-pill" style="background-color:' + mColor + ';">' + c.market + '</span></td>';
+        dHtml += '<td>' + c.type + '</td>';
+        dHtml += '<td>' + (c.city || 'N/A') + '</td>';
+        dHtml += '<td>' + (c.zip || 'N/A') + '</td>';
+        dHtml += '<td class="data-font">' + (c.locationId || 'N/A') + '</td>';
+        dHtml += '<td class="data-font">' + (c.vlan || '2001') + '</td>';
+        dHtml += '<td class="text-end"><button class="btn btn-sm btn-light rounded-circle shadow-sm text-muted" onclick="openCommModal(\'' + escape(c.name) + '\')"><i class="bi bi-pencil"></i></button></td>';
+        dHtml += '</tr>';
       }); 
-      cBox.innerHTML = arr.length ? html : '<div class="micro-label text-center mt-4">No communities found.</div>'; 
+      mBox.innerHTML = arr.length ? mHtml : '<div class="micro-label text-center mt-4">No communities found.</div>'; 
+      if (dBox) dBox.innerHTML = arr.length ? dHtml : '<tr><td colspan="8" class="text-center micro-label py-4">No communities found.</td></tr>'; 
     }
 
     // --- PROVISIONING QR GENERATOR ---
@@ -574,8 +1544,12 @@
 
       document.getElementById('trackComm').innerText = commName;
 
+      var banner = document.getElementById('trackBanner');
+      if (banner) banner.style.borderLeftColor = getMktColor(cData.market);
+
       var btn = document.getElementById('btnGen'); btn.innerText = "Processing...";
       document.getElementById('qrResults').style.display = 'block'; document.getElementById('errorBox').style.display = 'none'; document.getElementById('successBox').style.display = 'none';
+      document.getElementById('trackPromptBtn').style.display = 'none';
 
       var type = cData.type ? cData.type.toUpperCase() : "SFU", locId = cData.locationId ? cData.locationId.toUpperCase() : "";
       if (!locId) { showError("MISSING LOCATION ID"); btn.innerText = "Generate QRs"; return; }
@@ -600,27 +1574,260 @@
 
       var fullLocationStr = fullAddr + "\n" + (cData.city||"") + ", TX " + (cData.zip||"");
 
-      var html1 = buildQrItem('Calix Account#/ONT ID', accId) + buildQrItem('Calix Location/Location ID', locStr) + buildQrItem('Customer Name', '(Customer Name Here)') + buildQrItem('Address', fullLocationStr);
-      var html2 = buildQrItem('Calix Account#/ONT ID', accId) + buildQrItem('141 Palestine Trail', 'PROVISIONED') + buildQrItem('Address', fullAddr) + buildQrItem('City', cData.city||"") + buildQrItem('Zip', cData.zip||"");
+      var html1_individual = buildQrItem('Calix Account#/ONT ID', accId) + buildQrItem('Calix Location/Location ID', locStr) + buildQrItem('Customer Name', '(Customer Name Here)') + buildQrItem('Address', fullLocationStr);
+      var combinedCalix = accId + "\t" + locStr + "\t" + "(Customer Name Here)" + "\t" + fullLocationStr;
+      var combinedCalixUrl = 'https://quickchart.io/qr?text=' + encodeURIComponent(combinedCalix) + '&dark=%230f172a&light=%23ffffff&margin=2';
+      var html1_combined = '<div class="qr-item flex-column align-items-center justify-content-center py-4 px-2 text-center"><div class="fw-bold text-primary mb-1" style="font-size: 1.1rem;">All-in-One Barcode</div><div class="micro-label mb-3 text-muted">Auto-tabs: Account # ⇥ Location ID ⇥ Name ⇥ Address</div><img src="' + combinedCalixUrl + '" class="shadow-sm" style="width: 220px; height: 220px; border-radius: 12px; border: 1px solid var(--border-glass);"></div>';
+      var html1Toggle = '<div class="btn-group w-100 mb-3 shadow-sm" role="group"><input type="radio" class="btn-check" name="btnradio_calix" id="btnradio1" autocomplete="off" checked onchange="document.getElementById(\'calixInd\').style.display=\'block\'; document.getElementById(\'calixComb\').style.display=\'none\';"><label class="btn btn-outline-primary btn-sm fw-bold" style="font-size:10px;" for="btnradio1">Individual QRs</label><input type="radio" class="btn-check" name="btnradio_calix" id="btnradio2" autocomplete="off" onchange="document.getElementById(\'calixInd\').style.display=\'none\'; document.getElementById(\'calixComb\').style.display=\'block\';"><label class="btn btn-outline-primary btn-sm fw-bold" style="font-size:10px;" for="btnradio2">All-in-One (Tabbed)</label></div>';
+      var html1 = html1Toggle + '<div id="calixInd">' + html1_individual + '</div><div id="calixComb" style="display:none;">' + html1_combined + '</div>';
+
+      var html2_individual = buildQrItem('Calix Account#/ONT ID', accId) + buildQrItem('141 Palestine Trail', 'PROVISIONED') + buildQrItem('Address', fullAddr) + buildQrItem('City', cData.city||"") + buildQrItem('Zip', cData.zip||"");
+      var combinedSmx = accId + "\t" + "PROVISIONED" + "\t" + fullAddr + "\t" + (cData.city||"") + "\t" + (cData.zip||"");
+      var combinedSmxUrl = 'https://quickchart.io/qr?text=' + encodeURIComponent(combinedSmx) + '&dark=%230f172a&light=%23ffffff&margin=2';
+      var html2_combined = '<div class="qr-item flex-column align-items-center justify-content-center py-4 px-2 text-center"><div class="fw-bold text-primary mb-1" style="font-size: 1.1rem;">All-in-One Barcode</div><div class="micro-label mb-3 text-muted">Auto-tabs: Account # ⇥ PROVISIONED ⇥ Address ⇥ City ⇥ Zip</div><img src="' + combinedSmxUrl + '" class="shadow-sm" style="width: 220px; height: 220px; border-radius: 12px; border: 1px solid var(--border-glass);"></div>';
+      var html2Toggle = '<div class="btn-group w-100 mb-3 shadow-sm" role="group"><input type="radio" class="btn-check" name="btnradio_smx" id="btnradio3" autocomplete="off" checked onchange="document.getElementById(\'smxInd\').style.display=\'block\'; document.getElementById(\'smxComb\').style.display=\'none\';"><label class="btn btn-outline-primary btn-sm fw-bold" style="font-size:10px;" for="btnradio3">Individual QRs</label><input type="radio" class="btn-check" name="btnradio_smx" id="btnradio4" autocomplete="off" onchange="document.getElementById(\'smxInd\').style.display=\'none\'; document.getElementById(\'smxComb\').style.display=\'block\';"><label class="btn btn-outline-primary btn-sm fw-bold" style="font-size:10px;" for="btnradio4">All-in-One (Tabbed)</label></div>';
+      var html2 = html2Toggle + '<div id="smxInd">' + html2_individual + '</div><div id="smxComb" style="display:none;">' + html2_combined + '</div>';
+
       var html3 = buildQrItem('Calix Account#/ONT ID', accId) + buildQrItem('Calix Location/Location ID', locStr) + buildQrItem('Description', fullLocationStr);
       
       document.getElementById('successBox').innerHTML = buildSection('CalixCloud Add Sub', '#f59e0b', html1, true) + buildSection('SMx Add Subscriber', '#0284c7', html2, false) + buildSection('SMx Create ONT', '#16a34a', html3, false);
       document.getElementById('successBox').style.display = 'block'; btn.innerText = "Generate QRs";
-
-      if (!isHistoryReload) {
-        var hObj = { id: accId, addr: fullAddr, comm: commName, mkt: document.getElementById('mkt').value, typ: type };
-        google.script.run.withSuccessHandler(function(){ google.script.run.withSuccessHandler(function(d){ APP_DATA.history = d.history; renderHistory(); }).getAppData(); }).logHistory(hObj, getTechId());
-      }
+      document.getElementById('trackPromptBtn').style.display = 'block';
       setTimeout(function() { document.getElementById('successBox').scrollIntoView({behavior: "smooth", block: "start"}); }, 100);
     }
 
-    function buildSection(title, color, contentHtml, isActive) { var display = isActive ? 'block' : 'none'; var icon = isActive ? 'bi-chevron-up' : 'bi-chevron-down'; return '<div class="section-banner" style="background:' + color + ';" onclick="toggleSection(this)"><span>' + title + '</span><i class="bi ' + icon + '"></i></div><div class="section-content" style="display:' + display + ';">' + contentHtml + '</div>'; }
-    function buildQrItem(label, val) { if(!val) return ''; val = String(val); var qrUrl = 'https://quickchart.io/qr?text=' + encodeURIComponent(val) + '&dark=%230f172a&light=%23ffffff&margin=1'; var escVal = val.replace(/'/g, "\\'").replace(/\n/g, "\\n"); return '<div class="qr-item"><div style="flex:1; padding-right:10px;"><div class="micro-label">' + label + '</div><div class="data-font" style="white-space:pre-wrap;">' + val + '</div><button class="btn btn-outline-secondary btn-copy-dense" onclick="copySpecific(\'' + escVal + '\', this)">COPY</button></div><img src="' + qrUrl + '" class="qr-img shadow-sm"></div>'; }
+    function buildSection(title, color, contentHtml, isActive) { var display = isActive ? 'block' : 'none'; var icon = isActive ? 'bi-chevron-up' : 'bi-chevron-down'; return '<div class="section-banner" style="background:' + color + ';" onclick="toggleSection(this)"><span>' + title + '</span><i class="bi ' + icon + '"></i></div><div class="section-content" style="display:' + display + ';"><div class="desktop-qr-grid">' + contentHtml + '</div></div>'; }
+    function buildQrItem(label, val) { if(!val) return ''; val = String(val); var qrUrl = 'https://quickchart.io/qr?text=' + encodeURIComponent(val) + '&dark=%230f172a&light=%23ffffff&margin=1'; var escVal = val.replace(/'/g, "\\'").replace(/\n/g, "\\n").replace(/\t/g, "\\t"); var displayVal = val.replace(/\t/g, ' <span class="text-primary fw-bold mx-1">⇥</span> '); return '<div class="qr-item"><div style="flex:1; padding-right:10px;"><div class="micro-label">' + label + '</div><div class="data-font" style="white-space:pre-wrap;">' + displayVal + '</div><button class="btn btn-outline-secondary btn-copy-dense" onclick="copySpecific(\'' + escVal + '\', this)">COPY</button></div><img src="' + qrUrl + '" class="qr-img shadow-sm"></div>'; }
     function showError(msg) { document.getElementById('errorText').innerText = msg; document.getElementById('errorBox').style.display = 'block'; }
     function copySpecific(text, btn) { navigator.clipboard.writeText(text); var orig = btn.innerText; btn.innerText = "COPIED!"; btn.classList.add("btn-success"); btn.classList.remove("btn-outline-secondary"); setTimeout(function(){ btn.innerText = orig; btn.classList.remove("btn-success"); btn.classList.add("btn-outline-secondary"); }, 1500); }
-    function openApptModal() { var html = '<h5 class="fw-bold mb-3">Add Task</h5><span class="micro-label">Customer Name</span><input type="text" id="modName" class="form-control mb-3"><span class="micro-label">Address</span><input type="text" id="modAddr" class="form-control mb-3"><span class="micro-label">Time</span><input type="text" id="modTime" class="form-control mb-4" placeholder="e.g. 10:00 AM"><div class="d-flex gap-2"><button class="btn btn-outline-secondary w-50" onclick="closeModal()">Cancel</button><button class="btn btn-primary w-50" onclick="saveAppt()">Save</button></div>'; document.getElementById('modalContent').innerHTML = html; document.getElementById('modalOverlay').classList.add('show'); }
+    
+    function openApptModal(apptId) { 
+      var isEdit = typeof apptId === 'string';
+      var a = isEdit ? APP_DATA.appointments.find(function(item) { return item.id.toString() === apptId.toString(); }) : null;
+
+      var now = new Date();
+      var d = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+      var curHour = Math.min(now.getHours() + 1, 23);
+      var timeVal = String(curHour).padStart(2, '0') + ':00';
+      var name = "", addr = "", durMins = 60, comm = "", jobType = "", unit = "", status = "Scheduled";
+      var modalTitle = '<i class="bi bi-calendar-plus text-primary me-2"></i>Add Task';
+      var assignedTech = getTechId();
+
+      if (isEdit && a) {
+        modalTitle = '<i class="bi bi-pencil-square text-primary me-2"></i>Edit Task';
+        name = a.name || ""; addr = a.address || "";
+        comm = a.comm || ""; jobType = a.jobType || ""; unit = a.unit || "";
+        status = a.status || "Scheduled";
+        assignedTech = a.user || getTechId();
+        var parsed = parseApptTime(a); var dt = parsed.date;
+        d = dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+        timeVal = String(dt.getHours()).padStart(2, '0') + ':' + String(dt.getMinutes()).padStart(2, '0');
+        durMins = parsed.mins;
+      }
+
+      var commOptions = '<option value="">-- Community --</option>';
+      Object.keys(APP_DATA.communities).sort().forEach(function(k) { commOptions += '<option value="' + k + '" ' + (comm === k ? 'selected' : '') + '>' + k + '</option>'; });
+      
+      var jobTypeOptions = '<option value="">-- Job Type --</option>';
+      APP_DATA.jobTypes.forEach(function(jt) { jobTypeOptions += '<option value="' + jt + '" ' + (jobType === jt ? 'selected' : '') + '>' + jt + '</option>'; });
+
+      var assignTechHtml = '';
+      if (isManager()) {
+        var techOptions = '<option value="">-- Assign To --</option>';
+        APP_DATA.roster.forEach(function(emp) {
+          var tName = emp.short || emp.name;
+          var isSelected = (!isEdit && window.selectedTechFilter === tName) || (isEdit && assignedTech === tName) || (!isEdit && window.selectedTechFilter === 'All' && tName === getTechId());
+          techOptions += '<option value="' + tName + '" ' + (isSelected ? 'selected' : '') + '>' + toProperCase(tName) + '</option>';
+        });
+        assignTechHtml = '<div class="mb-3"><span class="micro-label">Assign Task To</span><select id="modAssignTech" class="form-select border-primary border-2">' + techOptions + '</select></div>';
+      }
+
+      var html = '<h5 class="fw-bold mb-3">' + modalTitle + '</h5>' +
+                 '<input type="hidden" id="modApptId" value="' + (apptId || '') + '">' +
+                 '<input type="hidden" id="modStatus" value="' + status + '">' +
+                 assignTechHtml +
+                 '<div class="mb-3 p-2 border border-primary rounded bg-light" style="border-style: dashed !important;"><span class="micro-label text-primary"><i class="bi bi-magic me-1"></i>HubSpot Quick Paste</span><input type="text" id="hubspotPaste" class="form-control form-control-sm" placeholder="Paste ticket title..." oninput="handleHubSpotPaste()"></div>' +
+                 '<div class="row g-2 mb-2"><div class="col-6"><span class="micro-label">Customer Name</span><input type="text" id="modName" class="form-control" placeholder="Optional" value="' + name + '"></div>' +
+                 '<div class="col-6"><span class="micro-label">Job Type</span><select id="modJobType" class="form-select">' + jobTypeOptions + '</select></div></div>' +
+                 '<div class="row g-2 mb-2"><div class="col-6"><span class="micro-label">Community</span><select id="modComm" class="form-select">' + commOptions + '</select></div>' +
+                 '<div class="col-6"><span class="micro-label">Unit / Apt #</span><input type="text" id="modUnit" class="form-control" placeholder="e.g. 104" value="' + unit + '"></div></div>' +
+                 '<span class="micro-label">Street Address</span><input type="text" id="modAddr" class="form-control mb-3" placeholder="e.g. 123 Main St" value="' + addr + '">' +
+                 '<div class="row g-2 mb-3">' +
+                   '<div class="col-6"><span class="micro-label">Date</span><input type="date" id="modDate" class="form-control" value="' + d + '"></div>' +
+                   '<div class="col-6"><span class="micro-label">Start Time</span><input type="time" id="modTime" class="form-control" value="' + timeVal + '"></div>' +
+                 '</div>' +
+                 '<span class="micro-label">Duration</span>' +
+                 '<div class="d-flex gap-2 mb-4 overflow-auto pb-1" id="durPills">' +
+                   '<button class="filter-pill ' + (durMins === 30 ? 'active' : '') + '" onclick="setDur(30, this)">30 min</button>' +
+                   '<button class="filter-pill ' + (durMins === 60 ? 'active' : '') + '" onclick="setDur(60, this)">1 hr</button>' +
+                   '<button class="filter-pill ' + (durMins === 120 ? 'active' : '') + '" onclick="setDur(120, this)">2 hr</button>' +
+                   '<button class="filter-pill ' + (durMins === 180 ? 'active' : '') + '" onclick="setDur(180, this)">3 hr</button>' +
+                 '</div>' +
+                 '<input type="hidden" id="modDur" value="' + durMins + '">' +
+                 '<div class="d-flex gap-2"><button class="btn btn-outline-secondary w-50 rounded-pill fw-bold" onclick="closeModal()">Cancel</button><button id="btnSaveAppt" class="btn btn-primary w-50 rounded-pill fw-bold" onclick="saveAppt()">' + (isEdit ? 'Update' : 'Save') + '</button></div>'; 
+      document.getElementById('modalContent').innerHTML = html; 
+      document.getElementById('modalOverlay').classList.add('show'); 
+    }
+
+    function setDur(m, btn) {
+      document.getElementById('modDur').value = m;
+      var pills = document.getElementById('durPills').querySelectorAll('.filter-pill'); pills.forEach(function(p) { p.classList.remove('active'); }); btn.classList.add('active');
+    }
+
+    function handleHubSpotPaste() {
+      var val = document.getElementById('hubspotPaste').value.trim();
+      if(!val) return;
+      var match = val.match(/^(.*?)\s+-\s+(.*?)\s+in\s+(.*)$/i);
+      if (match) {
+        var jt = match[1].trim(), addr = match[2].trim(), commRaw = match[3].trim();
+        document.getElementById('modAddr').value = addr;
+
+        // Auto-select Job Type
+        var jtSelect = document.getElementById('modJobType');
+        var jtLower = jt.toLowerCase();
+        for(var i=0; i<jtSelect.options.length; i++) {
+          if(jtSelect.options[i].value && (jtSelect.options[i].value.toLowerCase() === jtLower || jtLower.includes(jtSelect.options[i].value.toLowerCase()))) { jtSelect.selectedIndex = i; break; }
+        }
+        // Auto-select Community (fuzzy match)
+        var commSelect = document.getElementById('modComm');
+        var commLower = commRaw.toLowerCase();
+        for(var j=0; j<commSelect.options.length; j++) {
+          if(commSelect.options[j].value && (commLower.includes(commSelect.options[j].value.toLowerCase()) || commSelect.options[j].value.toLowerCase().includes(commLower.split(' ')[0]))) { commSelect.selectedIndex = j; break; }
+        }
+      }
+    }
+
+    function saveAppt() {
+      var id = document.getElementById('modApptId').value;
+      var name = document.getElementById('modName').value.trim();
+      var addr = document.getElementById('modAddr').value.trim();
+      var dateVal = document.getElementById('modDate').value;
+      var timeVal = document.getElementById('modTime').value;
+      var durMins = parseInt(document.getElementById('modDur').value);
+      var comm = document.getElementById('modComm').value;
+      var jobType = document.getElementById('modJobType').value;
+      var unit = document.getElementById('modUnit').value.trim();
+      var status = document.getElementById('modStatus') ? document.getElementById('modStatus').value : 'Scheduled';
+      var finalAssignedTech = document.getElementById('modAssignTech') ? document.getElementById('modAssignTech').value : getTechId();
+
+      if(!addr || !dateVal || !timeVal) return alert("Address, Date, and Time are required.");
+      document.getElementById('btnSaveAppt').innerText = id ? "Updating..." : "Saving...";
+
+      var dt = new Date(dateVal + 'T' + timeVal + ':00');
+      var endDt = new Date(dt.getTime() + durMins * 60000);
+
+      var displayDate = String(dt.getMonth() + 1).padStart(2, '0') + '/' + String(dt.getDate()).padStart(2, '0');
+      function formatTime12(dateObj) { var h = dateObj.getHours(), m = dateObj.getMinutes(), ampm = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; m = m < 10 ? '0' + m : m; return h + ':' + m + ' ' + ampm; }
+      
+      var timeStr = displayDate + ' • ' + formatTime12(dt) + ' - ' + formatTime12(endDt);
+      var apptId = id || new Date().getTime().toString();
+      var appt = { id: apptId, name: name, address: addr, time: timeStr, status: status, rawDate: dateVal, rawTime: timeVal, durMins: durMins, comm: comm, jobType: jobType, unit: unit, user: finalAssignedTech };
+
+      google.script.run.withSuccessHandler(function() {
+        if (!APP_DATA.appointments) APP_DATA.appointments = [];
+        if (id) {
+          var idx = APP_DATA.appointments.findIndex(function(a) { return a.id.toString() === id.toString(); });
+          if (idx > -1) APP_DATA.appointments[idx] = appt;
+        } else {
+          APP_DATA.appointments.push(appt);
+        }
+        renderAppointments();
+        closeModal();
+      }).saveAppt(appt, finalAssignedTech);
+    }
+
     function deleteAppt(id) { if(confirm("Remove appointment?")) { APP_DATA.appointments = APP_DATA.appointments.filter(function(a){ return a.id.toString() !== id.toString(); }); renderAppointments(); google.script.run.deleteAppt(id); } }
     function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); }
+
+    // --- BARCODE SCANNER LOGIC ---
+    var html5QrCode;
+    var currentScanTarget = '';
+    var isTorchOn = false;
+
+    function openScanner(targetId) {
+      currentScanTarget = targetId;
+      var modal = document.getElementById('scannerModalOverlay');
+      
+      // Inject flashlight toggle dynamically next to the close button
+      if (!document.getElementById('btnTorch')) {
+        var header = modal.querySelector('.d-flex');
+        if (header && header.lastElementChild) {
+          var closeBtn = header.lastElementChild;
+          var btnContainer = document.createElement('div');
+          btnContainer.innerHTML = '<button id="btnTorch" class="btn btn-sm btn-outline-warning rounded-circle shadow-sm me-2" onclick="toggleTorch()"><i class="bi bi-lightbulb-fill"></i></button>';
+          header.insertBefore(btnContainer, closeBtn);
+          btnContainer.appendChild(closeBtn);
+        }
+      }
+
+      modal.classList.add('show');
+      
+      if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode("scanner-reader");
+      }
+      
+      html5QrCode.start(
+        { facingMode: "environment" }, // Prioritizes rear camera
+        { fps: 10, qrbox: { width: 250, height: 100 } },
+        function(decodedText, decodedResult) {
+          document.getElementById(currentScanTarget).value = decodedText;
+          if(navigator.vibrate) navigator.vibrate(100); // Haptic feedback on read
+          closeScanner();
+        },
+        function(errorMessage) { /* Expected loop error when barcode isn't in frame; ignore */ }
+      ).catch(function(err) {
+        alert("Camera access denied or unavailable. Please check your browser permissions.");
+        closeScanner();
+      });
+    }
+
+    function closeScanner() {
+      if (html5QrCode && html5QrCode.isScanning) { html5QrCode.stop().then(function() { html5QrCode.clear(); }).catch(function(err) { console.log(err); }); }
+      
+      // Reset the flashlight state when closing
+      isTorchOn = false;
+      var btn = document.getElementById('btnTorch');
+      if (btn) { btn.classList.replace('btn-warning', 'btn-outline-warning'); btn.classList.remove('text-white'); }
+      
+      document.getElementById('scannerModalOverlay').classList.remove('show');
+    }
+
+    function toggleTorch() {
+      if (!html5QrCode) return;
+      isTorchOn = !isTorchOn;
+      var btn = document.getElementById('btnTorch');
+      
+      html5QrCode.applyVideoConstraints({ advanced: [{ torch: isTorchOn }] })
+        .then(function() {
+          if (isTorchOn) { btn.classList.replace('btn-outline-warning', 'btn-warning'); btn.classList.add('text-white'); } 
+          else { btn.classList.replace('btn-warning', 'btn-outline-warning'); btn.classList.remove('text-white'); }
+        })
+        .catch(function(err) {
+          isTorchOn = !isTorchOn; // Revert state if unsupported
+          alert("Flashlight not supported or permission denied on this device's browser.");
+        });
+    }
+
+    // --- FEEDBACK BACKLOG ---
+    function openFeedbackModal() {
+      var html = '<h5 class="fw-bold mb-3"><i class="bi bi-chat-square-text-fill text-warning me-2"></i>Beta Feedback</h5><p class="small text-muted mb-3">Found a bug or have a suggestion? Let us know!</p><textarea id="feedbackText" class="form-control mb-4" rows="4" placeholder="Type your feedback here..."></textarea><div class="d-flex gap-2"><button class="btn btn-outline-secondary w-50 rounded-pill fw-bold" onclick="closeModal()">Cancel</button><button class="btn btn-warning w-50 rounded-pill fw-bold" onclick="saveFeedback()">Submit</button></div>';
+      document.getElementById('modalContent').innerHTML = html; document.getElementById('modalOverlay').classList.add('show');
+    }
+    function saveFeedback() {
+      var text = document.getElementById('feedbackText').value.trim();
+      if(!text) return alert("Please enter your feedback first.");
+      var btn = document.querySelector('#modalContent .btn-warning');
+      if(btn) btn.innerText = "Sending...";
+      google.script.run.withSuccessHandler(function(res) { 
+        closeModal(); 
+        if(res.error) alert("Error: " + res.error); 
+        else { 
+          alert("Feedback submitted! Thank you."); 
+          if(APP_DATA.feedback) { APP_DATA.feedback.unshift({user: getTechId(), text: text, time: "Just now", timestamp: new Date().getTime()}); renderFeedback(); }
+        } 
+      })
+        .submitFeedback(text, getTechId());
+    }
   </script>
 </body>
 </html>
