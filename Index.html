@@ -1842,8 +1842,8 @@
     function renderAdminMap() {
       if (!adminMapVar) {
         adminMapVar = L.map('adminMap').setView([31.9686, -99.9018], 6); // Default Texas
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19, attribution: '© OpenStreetMap'
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+          maxZoom: 19, attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
         }).addTo(adminMapVar);
         adminMapMarkers.addTo(adminMapVar);
       }
