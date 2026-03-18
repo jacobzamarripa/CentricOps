@@ -4,6 +4,8 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <style>
     /* --- EXECUTIVE GLASS DESIGN SYSTEM --- */
     :root {
@@ -496,6 +498,9 @@
       </div>
 
       <div id="adminContent" style="display:none;">
+        <h6 class="fw-bold text-primary mb-3"><i class="bi bi-geo-alt-fill me-2"></i>Team Locations (Today)</h6>
+        <div id="adminMap" style="height: 300px; border: 1px solid var(--border-glass); border-radius: 12px; z-index: 1; margin-bottom: 24px;"></div>
+
         <h6 class="fw-bold text-primary mb-3">Recent Feedback</h6>
         <div id="adminFeedbackList" class="overflow-auto" style="max-height: calc(100vh - 250px);"></div>
       </div>
@@ -787,6 +792,7 @@
         document.getElementById('adminContent').style.display = 'block';
         document.getElementById('adminPwdInput').value = '';
         showNewFeedbackLog(); // Show new feedback popups ONLY after unlocking
+        setTimeout(renderAdminMap, 100); // Allow DOM to render before Leaflet size calculation
       } else {
         alert('Incorrect password.');
       }
@@ -1827,6 +1833,73 @@
         } 
       })
         .submitFeedback(text, getTechId());
+    }
+
+    // --- LEAFLET ADMIN MAP LOGIC ---
+    var adminMapVar = null;
+    var adminMapMarkers = L.layerGroup();
+    
+    function renderAdminMap() {
+      if (!adminMapVar) {
+        adminMapVar = L.map('adminMap').setView([31.9686, -99.9018], 6); // Default Texas
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19, attribution: '© OpenStreetMap'
+        }).addTo(adminMapVar);
+        adminMapMarkers.addTo(adminMapVar);
+      }
+      
+      // Ensure map resizes correctly if container was hidden during init
+      adminMapVar.invalidateSize();
+      adminMapMarkers.clearLayers();
+      
+      var today = new Date();
+      var todayStr = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
+      var todayAppts = (APP_DATA.appointments || []).filter(function(a) { 
+        if (!a.time) return false;
+        var ad = new Date(a.time);
+        var adStr = ad.getFullYear() + "-" + String(ad.getMonth() + 1).padStart(2, '0') + "-" + String(ad.getDate()).padStart(2, '0');
+        return adStr === todayStr;
+      });
+      
+      var commGroups = {};
+      todayAppts.forEach(function(a) {
+        if (!a.comm) return;
+        if (!commGroups[a.comm]) commGroups[a.comm] = [];
+        commGroups[a.comm].push(a.user);
+      });
+      
+      var bounds = [];
+      Object.keys(commGroups).forEach(function(commName) {
+        var commInfo = APP_DATA.communities[commName];
+        if (commInfo) {
+          if (commInfo.lat && commInfo.lng) {
+            plotMarker(commName, commInfo.lat, commInfo.lng, commGroups[commName], bounds);
+          } else if (commInfo.city && commInfo.zip) { 
+            var query = encodeURIComponent(commInfo.city + ", TX " + commInfo.zip);
+            fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + query)
+              .then(response => response.json())
+              .then(data => {
+                if (data && data.length > 0) {
+                  var lat = parseFloat(data[0].lat);
+                  var lng = parseFloat(data[0].lon);
+                  commInfo.lat = lat; commInfo.lng = lng;
+                  google.script.run.withFailureHandler(err => console.error(err)).saveCommunityCoordinates(commName, lat, lng);
+                  plotMarker(commName, lat, lng, commGroups[commName], bounds);
+                }
+              }).catch(err => console.error("Geocoding failed for " + commName, err));
+          }
+        }
+      });
+    }
+    
+    function plotMarker(commName, lat, lng, usersArray, bounds) {
+      if (!isFinite(lat) || !isFinite(lng)) return;
+      var uniqueUsers = Array.from(new Set(usersArray));
+      var popupText = "<div class='small fw-bold'>" + commName + "</div><div class='micro-label mt-1'>Techs: " + toProperCase(uniqueUsers.join(", ")) + "</div>";
+      var marker = L.marker([lat, lng]).bindPopup(popupText);
+      adminMapMarkers.addLayer(marker);
+      bounds.push([lat, lng]);
+      if (adminMapVar && bounds.length > 0) { adminMapVar.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 }); }
     }
   </script>
 </body>

@@ -45,12 +45,12 @@ function getAppData(user) {
     const commSheet = masterSS.getSheetByName('Communities');
     if (!commSheet) throw new Error("Could not find 'Communities' tab in Master Sheet.");
     
-    let commData = commSheet.getLastRow() > 1 ? commSheet.getRange(2, 1, commSheet.getLastRow() - 1, 9).getValues() : [];
+    let commData = commSheet.getLastRow() > 1 ? commSheet.getRange(2, 1, commSheet.getLastRow() - 1, 10).getValues() : [];
     let communityMap = {}; let marketsSet = new Set(), typesSet = new Set();
 
     commData.forEach(row => {
       if (row[0]) { 
-        communityMap[row[0]] = { name: row[0], city: row[1] || "", market: row[2] || "", state: row[3] || "TX", zip: row[4] || "", type: row[5] || "", locationId: row[6] || "", vlan: row[7] || "" };
+        communityMap[row[0]] = { name: row[0], city: row[1] || "", market: row[2] || "", state: row[3] || "TX", zip: row[4] || "", type: row[5] || "", locationId: row[6] || "", vlan: row[7] || "", lat: row[8] || "", lng: row[9] || "" };
         if (row[2]) marketsSet.add(row[2]);
         if (row[5]) typesSet.add(row[5]);
       }
@@ -338,6 +338,30 @@ function submitFeedback(text, user) {
     } catch(emailErr) { console.error("Email notification failed", emailErr); }
 
     return { success: true };
+  } catch(e) { return { error: e.message }; }
+}
+
+// --- COMMUNITY GEOCODING ---
+function saveCommunityCoordinates(commName, lat, lng) {
+  try {
+    const masterSS = SpreadsheetApp.openById(MASTER_COMM_ID);
+    const commSheet = masterSS.getSheetByName('Communities');
+    if (!commSheet) return { error: "Communities sheet not found" };
+    
+    // Ensure header rows exist for Lat/Lng
+    const headerRow = commSheet.getRange(1, 1, 1, 10).getValues()[0];
+    if (headerRow[8] !== 'Latitude') commSheet.getRange(1, 9).setValue('Latitude');
+    if (headerRow[9] !== 'Longitude') commSheet.getRange(1, 10).setValue('Longitude');
+
+    const data = commSheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]).toLowerCase() === String(commName).toLowerCase()) {
+        commSheet.getRange(i + 1, 9).setValue(lat);
+        commSheet.getRange(i + 1, 10).setValue(lng);
+        return { success: true };
+      }
+    }
+    return { error: "Community not found" };
   } catch(e) { return { error: e.message }; }
 }
 
