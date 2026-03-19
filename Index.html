@@ -1494,9 +1494,10 @@
     }
 
     function confirmSaveComm() {
+      var pending = pendingCommSave;
       closeFuzzyModal();
-      if (!pendingCommSave) return;
-      var c = pendingCommSave.c; var oldId = pendingCommSave.oldId;
+      if (!pending) return;
+      var c = pending.c; var oldId = pending.oldId;
       
       if(oldId && oldId !== c.name) delete APP_DATA.communities[oldId];
       APP_DATA.communities[c.name] = c; applyCommFilter(); closeModal(); 

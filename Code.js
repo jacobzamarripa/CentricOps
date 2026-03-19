@@ -265,7 +265,30 @@ function submitEOD(eodData, user) {
 }
 
 // --- EXISTING CRUD ---
-function saveComm(c, oldName, user) { /* Same as previous version */ return true; }
+function saveComm(c, oldName, user) {
+  try {
+    const masterSS = SpreadsheetApp.openById(MASTER_COMM_ID);
+    const commSheet = masterSS.getSheetByName('Communities');
+    if (!commSheet) return { error: "Communities sheet not found" };
+
+    const searchName = (oldName && oldName !== c.name) ? oldName : c.name;
+    const data = commSheet.getDataRange().getValues();
+
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]).toLowerCase() === String(searchName).toLowerCase()) {
+        commSheet.getRange(i + 1, 1, 1, 8).setValues([[c.name, c.city, c.market, c.state || 'TX', c.zip, c.type, c.locationId, c.vlan]]);
+        return { success: true };
+      }
+    }
+
+    // New community — append row
+    commSheet.appendRow([c.name, c.city, c.market, c.state || 'TX', c.zip, c.type, c.locationId, c.vlan]);
+    return { success: true };
+  } catch(e) {
+    console.error("saveComm error:", e);
+    return { error: e.message };
+  }
+}
 
 function getHistoryData() {
   const localSS = SpreadsheetApp.getActiveSpreadsheet();
