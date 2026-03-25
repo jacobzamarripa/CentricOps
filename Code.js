@@ -392,3 +392,10 @@ function saveCommunityCoordinates(commName, lat, lng) {
 function forceAuthorize() {
   GmailApp.getInboxUnreadCount();
 }
+
+/**
+ * Helper function to include partial HTML files.
+ */
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
