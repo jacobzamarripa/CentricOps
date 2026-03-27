@@ -1,0 +1,76 @@
+<!-- ============================================================
+// FILE: JS_WorkTracker.html | ROLE: Work Logging & EOD Reports
+// DEPENDS ON: JS_Core.html | DEPENDED ON BY: Index.html
+// ============================================================ -->
+<script>
+  function addMeshField(e) {
+    if(e) e.preventDefault();
+    var m2 = document.getElementById('trackSerialMesh2');
+    var m3 = document.getElementById('trackSerialMesh3');
+    var m4 = document.getElementById('trackSerialMesh4');
+    if (m2.style.display === 'none') { m2.style.display = 'block'; return; }
+    if (m3.style.display === 'none') { m3.style.display = 'block'; return; }
+    if (m4.style.display === 'none') { m4.style.display = 'block'; document.getElementById('btnAddMesh').style.display = 'none'; }
+  }
+
+  function handleJobTypeChange() {
+    var type = document.getElementById('trackJobType').value;
+    var showFiber = ["Fiber Blow", "Hard Down", "Trouble Ticket", "Fiber Blow + Install", "Performed Maintenance"].includes(type);
+    var showEquipment = type.includes("Install"); 
+    document.getElementById('trackFiberFields').style.display = showFiber ? "block" : "none";
+    document.getElementById('trackEquipmentFields').style.display = showEquipment ? "block" : "none";
+    var provPrompt = document.getElementById('provPromptBtn');
+    if (provPrompt) provPrompt.style.display = showEquipment ? "block" : "none";
+    if (!showFiber) { document.getElementById('trackLight').value = ''; document.getElementById('trackDistance').value = ''; document.getElementById('trackTubeColor').value = ''; document.getElementById('trackPortColor').value = ''; document.getElementById('trackSplice').value = ''; }
+    if (!showEquipment) { 
+       document.getElementById('trackSerialOnt').value = ''; document.getElementById('trackSerialMesh1').value = ''; document.getElementById('trackSerialMesh2').value = ''; document.getElementById('trackSerialMesh3').value = ''; document.getElementById('trackSerialMesh4').value = ''; document.getElementById('trackSerialDoorbell').value = '';
+       document.getElementById('trackSerialMesh2').style.display = 'none'; document.getElementById('trackSerialMesh3').style.display = 'none'; document.getElementById('trackSerialMesh4').style.display = 'none'; document.getElementById('btnAddMesh').style.display = 'inline-block';
+    }
+  }
+
+  function getCombinedSerials() {
+    var serials = [];
+    var ont = document.getElementById('trackSerialOnt').value.trim().toUpperCase();
+    var m1 = document.getElementById('trackSerialMesh1').value.trim().toUpperCase();
+    var m2 = document.getElementById('trackSerialMesh2').value.trim().toUpperCase();
+    var m3 = document.getElementById('trackSerialMesh3').value.trim().toUpperCase();
+    var m4 = document.getElementById('trackSerialMesh4').value.trim().toUpperCase();
+    var db = document.getElementById('trackSerialDoorbell').value.trim().toUpperCase();
+    if(ont) serials.push("ONT: " + ont); if(m1) serials.push("Mesh 1: " + m1); if(m2) serials.push("Mesh 2: " + m2); if(m3) serials.push("Mesh 3: " + m3); if(m4) serials.push("Mesh 4: " + m4); if(db) serials.push("Doorbell: " + db);
+    return serials.join(" | ");
+  }
+
+  function submitWorkTracker() {
+    var btn = document.getElementById('btnTrack');
+    var jobData = { apptId: document.getElementById('trackApptId') ? document.getElementById('trackApptId').value : "", addr: document.getElementById('trackAddr').innerText, comm: document.getElementById('comm').value, type: document.getElementById('trackJobType').value, light: document.getElementById('trackLight').value, distance: document.getElementById('trackDistance').value, tubeColor: document.getElementById('trackTubeColor').value, portColor: document.getElementById('trackPortColor').value, splice: document.getElementById('trackSplice').value, serial: getCombinedSerials(), notes: document.getElementById('trackNotes').value };
+    if(!jobData.comm || jobData.comm === "") return alert("Please select the Community in the Provisioning tab first.");
+    var requiresFiber = (jobData.type === "Fiber Blow" || jobData.type === "Fiber Blow + Install"); var requiresEquipment = jobData.type.includes("Install"); var requiresNote = ["Home Not Ready", "Trouble Ticket", "Refered to Maintenance", "Performed Maintenance", "Not Live"].includes(jobData.type);
+    if (requiresFiber && (!jobData.light || !jobData.distance || !jobData.tubeColor || !jobData.portColor || !jobData.splice)) { return alert("Please fill out all Fiber Data fields (Light, Distance, Tube, Port, Splice) for this job type."); }
+    if (requiresEquipment) {
+      var ont = document.getElementById('trackSerialOnt').value.trim().toUpperCase(); var m1 = document.getElementById('trackSerialMesh1').value.trim().toUpperCase(); var m2 = document.getElementById('trackSerialMesh2').value.trim().toUpperCase(); var m3 = document.getElementById('trackSerialMesh3').value.trim().toUpperCase(); var m4 = document.getElementById('trackSerialMesh4').value.trim().toUpperCase(); var db = document.getElementById('trackSerialDoorbell').value.trim().toUpperCase();
+      var totalEquipment = [ont, m1, m2, m3, m4, db].filter(Boolean).length;
+      if (jobData.type === "Mesh Install" && !m1 && !m2 && !m3 && !m4) return alert("Please provide at least one Mesh Serial.");
+      if (jobData.type === "Doorbell Install" && !db) return alert("Please provide a Doorbell Serial.");
+      if ((jobData.type === "Install" || jobData.type === "Fiber Blow + Install") && totalEquipment === 0) { return alert("Please provide at least one Equipment Serial (ONT, Mesh, or Doorbell) for this installation."); }
+    }
+    if (requiresNote && !jobData.notes) return alert("Please provide details/notes for this job type.");
+    btn.innerText = "Logging..."; document.getElementById('trackResult').style.display = 'none';
+    google.script.run.withSuccessHandler(function(res){ btn.innerText = "Log Job"; if(res.error) return alert(res.error); document.getElementById('trackFormLink').href = res.url; document.getElementById('trackResult').style.display = 'block'; clearWorkTracker(); setTimeout(function() { document.getElementById('trackResult').style.display = 'none'; }, 5000); }).logWorkTracker(jobData, getTechId());
+  }
+
+  function clearWorkTracker() {
+    document.getElementById('trackAddr').innerText = "Select an address from Schedule"; document.getElementById('trackComm').innerText = ""; if(document.getElementById('trackApptId')) document.getElementById('trackApptId').value = "";
+    var banner = document.getElementById('trackBanner'); if (banner) banner.style.borderLeftColor = 'var(--border-glass)';
+    document.getElementById('trackJobType').selectedIndex = 0; document.getElementById('trackLight').value = ''; document.getElementById('trackDistance').value = ''; document.getElementById('trackTubeColor').value = ''; document.getElementById('trackPortColor').value = ''; document.getElementById('trackSplice').value = ''; document.getElementById('trackSerialOnt').value = ''; document.getElementById('trackSerialMesh1').value = ''; document.getElementById('trackSerialMesh2').value = ''; document.getElementById('trackSerialMesh3').value = ''; document.getElementById('trackSerialMesh4').value = ''; document.getElementById('trackSerialDoorbell').value = ''; document.getElementById('trackNotes').value = '';
+    handleJobTypeChange();
+  }
+
+  function sendEOD() {
+    var btn = document.getElementById('btnEod');
+    var eodData = { partner: document.getElementById('eodPartner').value, leadHours: document.getElementById('eodMyHours').value, partnerHours: document.getElementById('eodPartnerHours').value, mileage: document.getElementById('eodMileage').value, email: document.getElementById('eodEmail').value, techEmail: getTechEmail() };
+    if(!eodData.leadHours || !eodData.mileage || !eodData.email) return alert("Hours, Mileage, and Email are required.");
+    if(!confirm("Are you sure you want to submit your End of Day report?\n\nPlease double check that you logged all of your completed jobs in the Work Tracker.")) return;
+    btn.innerText = "Sending...";
+    google.script.run.withSuccessHandler(function(res){ btn.innerText = "Send EOD Report"; if(res.error) return alert("Failed: " + res.error); document.getElementById('eodSuccess').style.display = 'block'; setTimeout(function(){ document.getElementById('eodSuccess').style.display = 'none'; }, 3000); document.getElementById('eodPartner').value = ''; document.getElementById('eodMyHours').value = ''; document.getElementById('eodPartnerHours').value = ''; document.getElementById('eodMileage').value = ''; alert("Your End of Day report has been successfully sent!"); }).submitEOD(eodData, getTechId());
+  }
+</script>

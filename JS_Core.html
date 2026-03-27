@@ -1,0 +1,175 @@
+<!-- ============================================================
+// FILE: JS_Core.html | ROLE: Global State, Dark Mode, Init, Swipes
+// DEPENDS ON: CSS_Styles.html | DEPENDED ON BY: Index.html
+// ============================================================ -->
+<script>
+  var isDarkMode = localStorage.getItem('centric_dark_mode') === 'true';
+  if (isDarkMode) document.body.classList.add('dark-mode');
+
+  var APP_DATA = {};
+  var loadingInterval;
+  var pendingCommSave = null;
+  
+  function toProperCase(str) {
+    if (!str) return '';
+    return str.toString().toLowerCase().replace(/\b\w/g, function(char) { return char.toUpperCase(); });
+  }
+
+  function initSelect(id) {
+    var el = typeof id === 'string' ? document.getElementById(id) : id;
+    if (!el) return;
+    if (el.tomselect) el.tomselect.destroy();
+    new TomSelect(el, { create: false, controlInput: '<input>', searchField: ['text'] });
+  }
+
+  function toggleDarkMode() {
+    var body = document.body;
+    body.classList.toggle('dark-mode');
+    var isDark = body.classList.contains('dark-mode');
+    localStorage.setItem('centric_dark_mode', isDark);
+    updateDarkModeIcon(isDark);
+  }
+  
+  function updateDarkModeIcon(isDark) {
+    var icon = document.querySelector('#btnDarkMode i');
+    if (!icon) return;
+    if (isDark) { icon.classList.remove('bi-moon-stars', 'text-primary'); icon.classList.add('bi-sun', 'text-warning'); } 
+    else { icon.classList.remove('bi-sun', 'text-warning'); icon.classList.add('bi-moon-stars', 'text-primary'); }
+  }
+
+  var MARKET_COLORS = { "Austin": "#f59e0b", "Dallas/Fortworth": "#22c55e", "Florida": "#06b6d4", "Houston": "#f97316", "San Antonio E/NE": "#3b82f6", "San Antonio S/SW": "#4f46e5" };
+  function getMktColor(mktName) { return MARKET_COLORS[mktName] || "#64748b"; }
+
+  // --- CALENDAR LOGIC ---
+  var currCalDate = new Date();
+  function initCalendar() { var d = new Date(); document.getElementById('headerDateDisplay').innerText = d.toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric'}); document.getElementById('historyDateDisplay').innerText = "- " + d.toLocaleDateString('en-US', {month:'short', day:'numeric'}); renderCalendar(currCalDate); }
+  function toggleCalendar() { var cal = document.getElementById('calendarWidget'); cal.style.display = (cal.style.display === 'none' || cal.style.display === '') ? 'block' : 'none'; }
+  function changeMonth(dir) { currCalDate.setMonth(currCalDate.getMonth() + dir); renderCalendar(currCalDate); }
+  
+  // Close calendar when clicking outside
+  document.addEventListener('click', function(e) {
+    var cal = document.getElementById('calendarWidget');
+    var btn = document.querySelector('button[onclick="toggleCalendar()"]');
+    if (cal && cal.style.display === 'block' && !cal.contains(e.target) && (!btn || !btn.contains(e.target))) { cal.style.display = 'none'; }
+  });
+
+  function renderCalendar(date) {
+    document.getElementById('calMonthYear').innerText = date.toLocaleDateString('en-US', {month:'long', year:'numeric'});
+    var firstDay = new Date(date.getFullYear(), date.getMonth(), 1).getDay(); var daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate(); var today = new Date(); var html = '';
+    for(var i=0; i<firstDay; i++) html += '<div></div>';
+    for(var i=1; i<=daysInMonth; i++) { var isToday = (i === today.getDate() && date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear()); var cls = isToday ? 'cal-day cal-today' : 'cal-day'; html += '<div class="' + cls + '">' + i + '</div>'; }
+    document.getElementById('calDays').innerHTML = html;
+  }
+
+  // --- SWIPE GESTURES ---
+  var touchstartX = 0; var touchendX = 0;
+  var touchstartY = 0; var touchendY = 0;
+  var panesOrder = ['pane-apps', 'pane-tracker', 'pane-tool', 'pane-history', 'pane-map', 'pane-comm'];
+  var preventSwipe = false;
+  document.addEventListener('touchstart', function(e) { 
+    preventSwipe = !!e.target.closest('#adminMap') || !!e.target.closest('.leaflet-container');
+    if (preventSwipe) return;
+    touchstartX = e.changedTouches[0].screenX; touchstartY = e.changedTouches[0].screenY; 
+  }, {passive: true});
+  document.addEventListener('touchend', function(e) { 
+    if (preventSwipe) return;
+    touchendX = e.changedTouches[0].screenX; touchendY = e.changedTouches[0].screenY; handleSwipe(); 
+  }, {passive: true});
+  function handleSwipe() {
+    if (window.innerWidth > 1024) return; 
+    var diffX = touchstartX - touchendX; var diffY = Math.abs(touchstartY - touchendY);
+    if (Math.abs(diffX) < 120 || diffY > Math.abs(diffX)) return; 
+    var currentIndex = -1;
+    for(var i=0; i<panesOrder.length; i++) { if(document.getElementById(panesOrder[i]).classList.contains('active-pane')) { currentIndex = i; break; } }
+    if (currentIndex === -1) return;
+    var availableDockItems = Array.from(document.querySelectorAll('.dock-item')).filter(function(d) { return d.style.display !== 'none'; });
+    if (diffX > 0 && currentIndex < panesOrder.length - 1) { switchPane(panesOrder[currentIndex + 1], availableDockItems[currentIndex + 1]); } 
+    else if (diffX < 0 && currentIndex > 0) { switchPane(panesOrder[currentIndex - 1], availableDockItems[currentIndex - 1]); }
+  }
+
+  window.onload = refreshApp;
+
+  function refreshApp() {
+    var loader = document.getElementById('loader');
+    loader.style.display = 'flex';
+    setTimeout(function() { loader.style.opacity = '1'; }, 10);
+    document.getElementById('loaderProgress').style.width = '0%';
+
+    updateDarkModeIcon(isDarkMode);
+    initCalendar();
+    var texts = ["Connecting to Master DB...", "Verifying Credentials...", "Parsing Operations Roster...", "Mounting Executive Glass UI..."];
+    var progress = 0; var textIdx = 0;
+    if (loadingInterval) clearInterval(loadingInterval);
+    loadingInterval = setInterval(function() {
+      progress += Math.random() * 15; if(progress > 85) progress = 85; 
+      document.getElementById('loaderProgress').style.width = progress + '%';
+      if (Math.random() > 0.5) { document.getElementById('loaderText').innerText = texts[textIdx % texts.length]; textIdx++; }
+    }, 400);
+
+    google.script.run
+      .withSuccessHandler(function(data) {
+        clearInterval(loadingInterval);
+        document.getElementById('loaderProgress').style.width = '100%'; document.getElementById('loaderText').innerText = "System Ready.";
+        setTimeout(function() { document.getElementById('loader').style.opacity = '0'; setTimeout(function() { document.getElementById('loader').style.display = 'none'; checkIdentity(); }, 500); }, 400);
+
+        APP_DATA = data;
+        APP_DATA.fullHistoryLoaded = false;
+        historyLoaded = true; 
+        document.getElementById('historySearchContainer').style.display = 'block';
+        
+        renderTechTabs();
+        renderAppointments(); 
+        renderHistory(); 
+        renderCommunities(data.communities);
+        setTimeout(renderAdminMap, 100);
+        fillDropdown('mkt', data.markets, "Market"); fillDropdown('typ', data.types, "Type");
+        
+        var tFilter = document.getElementById('commTypeFilter');
+        tFilter.innerHTML = '<option value="All">All Types</option>';
+        data.types.forEach(function(t) { tFilter.innerHTML += '<option value="' + t + '">' + t + '</option>'; });
+
+        var mFilter = document.getElementById('commMktFilter');
+        mFilter.innerHTML = '<option value="All">All Markets</option>';
+        data.markets.forEach(function(m) { mFilter.innerHTML += '<option value="' + m + '">' + m + '</option>'; });
+
+        var jtSelect = document.getElementById('trackJobType');
+        jtSelect.innerHTML = '';
+        data.jobTypes.forEach(function(jt) { jtSelect.innerHTML += '<option value="' + jt + '">' + jt + '</option>'; });
+        
+        handleJobTypeChange();
+        
+        var colors = ["Blue", "Orange", "Green", "Brown", "Slate", "White", "Red", "Black", "Yellow", "Violet", "Rose", "Aqua"];
+        var tubeSel = document.getElementById('trackTubeColor');
+        var portSel = document.getElementById('trackPortColor');
+        
+        if(tubeSel) {
+          tubeSel.innerHTML = '<option value="">-- Color --</option>';
+          colors.forEach(function(c) { tubeSel.innerHTML += '<option value="' + c + '">' + c + '</option>'; });
+        }
+        
+        if(portSel) {
+          portSel.innerHTML = '<option value="">-- Port/Color --</option><optgroup label="Colors">';
+          colors.forEach(function(c) { portSel.innerHTML += '<option value="' + c + '">' + c + '</option>'; });
+          portSel.innerHTML += '</optgroup><optgroup label="Ports (1-96)">';
+          for(var i=1; i<=96; i++) { portSel.innerHTML += '<option value="' + i + '">' + i + '</option>'; }
+          portSel.innerHTML += '</optgroup>';
+        }
+
+        var pSelect = document.getElementById('eodPartner');
+        pSelect.innerHTML = '<option value="">-- None --</option>';
+        data.roster.forEach(function(emp) { pSelect.innerHTML += '<option value="' + emp.name + '">' + toProperCase(emp.name) + '</option>'; });
+
+        setTimeout(function() {
+          initSelect('commTypeFilter');
+          initSelect('commMktFilter');
+          initSelect('trackJobType');
+          initSelect('trackTubeColor');
+          initSelect('trackPortColor');
+          initSelect('eodPartner');
+          initSelect('histFilter');
+          initSelect('histGroupBy');
+        }, 100);
+      })
+      .withFailureHandler(function(err) { document.getElementById('loaderText').innerHTML = '<span class="text-danger fw-bold">' + err.message + '</span>'; clearInterval(loadingInterval); }).getAppData();
+  }
+</script>

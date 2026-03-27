@@ -1,0 +1,87 @@
+<!-- ============================================================
+// FILE: JS_History.html | ROLE: History Search & Analytics
+// DEPENDS ON: JS_Core.html | DEPENDED ON BY: Index.html
+// ============================================================ -->
+<script>
+  var historyLoaded = false;
+  function fetchHistory() {
+    var btn = document.getElementById('btnLoadHistory');
+    if(btn) btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Loading...';
+    google.script.run.withSuccessHandler(function(data) {
+      APP_DATA.history = data; 
+      APP_DATA.fullHistoryLoaded = true;
+      renderHistory();
+    }).withFailureHandler(function(err) { if(btn) btn.innerText = "Error Loading. Try Again."; }).getHistoryData();
+  }
+
+  function renderHistory() {
+    if (!historyLoaded) return;
+    var mContainer = document.getElementById('historyItemsMobile'); 
+    var dContainer = document.querySelector('#historyTableDesktop tbody');
+    var histArray = APP_DATA.history || [];
+    var isMgr = isManager();
+    var filterEl = document.getElementById('histFilter');
+    var toggleEl = document.getElementById('historyViewToggles');
+    var groupEl = document.getElementById('histGroupBy');
+    if (isMgr) { filterEl.style.display = 'none'; if(toggleEl) toggleEl.style.display = 'inline-flex'; if(groupEl) groupEl.style.display = 'inline-block'; if (window.selectedTechFilter && window.selectedTechFilter !== 'All') { histArray = histArray.filter(function(h) { return h.user === window.selectedTechFilter; }); } } 
+    else { filterEl.style.display = 'none'; if(toggleEl) toggleEl.style.display = 'none'; if(groupEl) groupEl.style.display = 'none'; histArray = histArray.filter(function(h) { return h.user === getTechId(); }); }
+    var term = document.getElementById('histSearch') ? document.getElementById('histSearch').value.toLowerCase() : '';
+    if (term) histArray = histArray.filter(function(h) { return (h.addr && h.addr.toLowerCase().includes(term)) || (h.comm && h.comm.toLowerCase().includes(term)) || (h.user && h.user.toLowerCase().includes(term)); });
+    var d = new Date(); var mm = String(d.getMonth() + 1).padStart(2, '0'); var dd = String(d.getDate()).padStart(2, '0'); var todayMatch = mm + '/' + dd; var counts = {}; var total = 0;
+    (APP_DATA.history||[]).forEach(function(h) { if(h.time.startsWith(todayMatch)) { counts[h.user] = (counts[h.user]||0) + 1; total++; } });
+    var teamDiv = document.getElementById('teamStatusDesktop');
+    if(teamDiv) { if(isMgr) { var label = window.selectedTechFilter === 'All' ? 'Team Activity Today' : toProperCase(window.selectedTechFilter) + "'s Activity Today"; var statsText = window.selectedTechFilter === 'All' ? total + ' total jobs logged by ' + Object.keys(counts).length + ' techs' : total + ' total jobs logged'; teamDiv.innerHTML = '<div class="p-3 bg-primary bg-opacity-10 border border-primary border-opacity-25 rounded"><div class="fw-bold text-primary mb-1"><i class="bi bi-people-fill me-2"></i>' + label + '</div><div class="text-dark small fw-bold">' + statsText + '</div></div>'; teamDiv.style.display = 'block'; } else { teamDiv.innerHTML = ''; teamDiv.style.display = 'none'; } }
+    var groupBy = groupEl ? groupEl.value : 'none';
+    if (isMgr && groupBy !== 'none') { histArray = histArray.slice(); if (groupBy === 'tech') histArray.sort(function(a,b) { return (a.user||'').localeCompare(b.user||''); }); if (groupBy === 'type') histArray.sort(function(a,b) { return (a.typ||'').localeCompare(b.typ||''); }); if (groupBy === 'date') histArray.sort(function(a,b) { return (b.time.split(' ')[0]).localeCompare(a.time.split(' ')[0]); }); }
+    if(!histArray || histArray.length === 0) { 
+      var emptyMsg = term ? '<div class="micro-label text-center mt-4 mb-3">Not in recent history.</div><button class="btn btn-outline-primary w-100 rounded-pill fw-bold" onclick="searchDatabase(\'' + term.replace(/'/g, "\\'") + '\')"><i class="bi bi-search me-2"></i>Search Database</button>' : '<div class="micro-label text-center mt-4 mb-3">No recent activity found.</div><button id="btnLoadHistory" class="btn btn-outline-primary w-100 rounded-pill fw-bold" onclick="fetchHistory()"><i class="bi bi-cloud-download me-2"></i>Load Older History</button>';
+      if(mContainer) mContainer.innerHTML = emptyMsg; if(dContainer) dContainer.innerHTML = '<tr><td colspan="4" class="text-center">' + emptyMsg + '</td></tr>'; return; 
+    }
+    var mHtml = ''; var dHtml = ''; var currentGroup = '';
+    histArray.forEach(function(h) {
+      var originalIndex = APP_DATA.history.findIndex(function(item) { return item.addr === h.addr && item.time === h.time; });
+      var mkt = APP_DATA.communities[h.comm] ? APP_DATA.communities[h.comm].market : 'Unknown'; var jobType = h.typ || 'Unknown';
+      if (isMgr && groupBy !== 'none') { var gVal = ''; if (groupBy === 'tech') gVal = toProperCase(h.user) || 'Unknown'; if (groupBy === 'type') gVal = jobType; if (groupBy === 'date') gVal = h.time.split(' ')[0]; if (gVal !== currentGroup) { dHtml += '<tr><td colspan="4" class="pt-3 pb-2 border-bottom-0" style="font-size:12px; font-weight:800; text-transform:uppercase; background:var(--bg-app); color:var(--text-main);"><i class="bi bi-collection me-2 text-primary"></i>' + gVal + '</td></tr>'; currentGroup = gVal; } }
+      mHtml += '<div class="poly-card dense-card" onclick="reloadHistoryItem(' + originalIndex + ')"><div class="d-flex justify-content-between mb-2"><span class="status-pill" style="background-color:' + getMktColor(mkt) + ';">' + mkt + '</span><span class="micro-label">' + h.time + '</span></div><div class="data-font fs-6">' + h.comm + '</div><div class="small text-muted mt-1">' + h.addr + '<br><span style="font-size:10px; color:var(--accent-active);">' + toProperCase(h.user) + '</span></div></div>';
+      dHtml += '<tr style="cursor:pointer;" onclick="reloadHistoryItem(' + originalIndex + ')"><td class="text-muted" style="font-size:11px; font-weight:700; white-space:nowrap;">' + h.time + '</td><td class="fw-bold" style="font-size:12px; color:var(--accent-active);">' + toProperCase(h.user) + '</td><td><span class="status-pill" style="background-color:' + getMktColor(mkt) + ';">' + jobType + '</span></td><td class="small fw-bold">' + h.addr + '<div class="micro-label mt-1">' + h.comm + '</div></td></tr>';
+    });
+    if (!term && !APP_DATA.fullHistoryLoaded) { var loadBtn = '<button id="btnLoadHistory" class="btn btn-outline-secondary btn-sm w-100 rounded-pill fw-bold mt-3" onclick="fetchHistory()"><i class="bi bi-cloud-download me-2"></i>Load Older History</button>'; mHtml += loadBtn; dHtml += '<tr><td colspan="4">' + loadBtn + '</td></tr>'; }
+    if(mContainer) mContainer.innerHTML = mHtml; if(dContainer) dContainer.innerHTML = dHtml;
+    if (isMgr) updateAnalytics(histArray);
+  }
+
+  function switchHistoryView(view) {
+    if (view === 'table') { document.getElementById('historyListWrapper').style.display = 'block'; document.getElementById('historyAnalyticsContainer').style.display = 'none'; document.getElementById('btnHistTable').classList.replace('btn-outline-primary', 'btn-primary'); document.getElementById('btnHistChart').classList.replace('btn-primary', 'btn-outline-primary'); } 
+    else { document.getElementById('historyListWrapper').style.display = 'none'; document.getElementById('historyAnalyticsContainer').style.display = 'block'; document.getElementById('btnHistTable').classList.replace('btn-primary', 'btn-outline-primary'); document.getElementById('btnHistChart').classList.replace('btn-outline-primary', 'btn-primary'); }
+  }
+
+  var chartTechInst = null; var chartTypeInst = null;
+  function updateAnalytics(data) {
+    if (!isManager() || !window.Chart) return; Chart.defaults.color = '#64748b'; Chart.defaults.font.family = 'inherit';
+    var typeCounts = {}; var techCounts = {};
+    data.forEach(function(d) { var t = d.typ || 'Unknown'; var u = toProperCase(d.user) || 'Unknown'; typeCounts[t] = (typeCounts[t] || 0) + 1; techCounts[u] = (techCounts[u] || 0) + 1; });
+    var fiberColors = ['#3b82f6', '#f97316', '#22c55e', '#8b4513', '#64748b', '#cbd5e1', '#ef4444', '#000000', '#eab308', '#8b5cf6', '#f43f5e', '#06b6d4'];
+    var ctxType = document.getElementById('chartType');
+    if (ctxType) { if (chartTypeInst) chartTypeInst.destroy(); chartTypeInst = new Chart(ctxType, { type: 'doughnut', data: { labels: Object.keys(typeCounts), datasets: [{ data: Object.values(typeCounts), backgroundColor: fiberColors, borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels:{ font:{size:10} } }, title: { display: true, text: 'Jobs by Type', font: {size: 14, weight: 800} } } } }); }
+    var ctxTech = document.getElementById('chartTech');
+    if (ctxTech) { if (chartTechInst) chartTechInst.destroy(); chartTechInst = new Chart(ctxTech, { type: 'bar', data: { labels: Object.keys(techCounts), datasets: [{ label: 'Jobs Logged', data: Object.values(techCounts), backgroundColor: 'rgba(59, 130, 246, 0.8)', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: true, text: 'Jobs by Technician', font: {size: 14, weight: 800} } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } } }); }
+  }
+
+  function searchDatabase(term) {
+    var mContainer = document.getElementById('historyItemsMobile'); var dContainer = document.querySelector('#historyTableDesktop tbody');
+    var loadMsg = '<div class="text-center mt-4"><span class="spinner-border spinner-border-sm text-primary mb-2"></span><div class="micro-label">Searching Database...</div></div>';
+    if(mContainer) mContainer.innerHTML = loadMsg; if(dContainer) dContainer.innerHTML = '<tr><td colspan="4">' + loadMsg + '</td></tr>';
+    google.script.run.withSuccessHandler(function(matches) {
+      if(matches.length === 0) { if(mContainer) mContainer.innerHTML = '<div class="micro-label text-center mt-4 text-danger">No matches found in database.</div>'; if(dContainer) dContainer.innerHTML = '<tr><td colspan="4" class="text-center micro-label text-danger">No matches found in database.</td></tr>'; setTimeout(renderHistory, 3000); return; }
+      var existingKeys = new Set(APP_DATA.history.map(function(h) { return h.time + '_' + h.addr; })); matches.forEach(function(m) { if (!existingKeys.has(m.time + '_' + m.addr)) APP_DATA.history.push(m); }); renderHistory();
+    }).withFailureHandler(function(err) { alert("Search failed: " + err.message); renderHistory(); }).searchHistoryDB(term);
+  }
+
+  function reloadHistoryItem(index) {
+    if (index < 0 || !APP_DATA.history[index]) return; var item = APP_DATA.history[index];
+    if(window.innerWidth <= 1024) switchPane('pane-tool', document.querySelector('.dock-item[onclick*="pane-tool"]'));
+    document.getElementById('mkt').value = item.mkt; document.getElementById('typ').value = item.typ; filterComms(); 
+    setTimeout(function() { document.getElementById('comm').value = item.comm; document.getElementById('addr').value = item.addr; document.getElementById('unit').value = ""; calculateProvisioning(true); }, 150);
+    loadActiveJob(item.addr, item.comm); 
+  }
+</script>

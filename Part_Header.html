@@ -1,0 +1,16 @@
+<!-- ============================================================
+// FILE: Part_Header.html | ROLE: Application Navigation & Identity
+// DEPENDS ON: JS_Modules.html | DEPENDED ON BY: Index.html
+// ============================================================ -->
+<div class="app-header">
+  <div class="d-flex flex-column">
+    <div class="header-title">Centric Ops</div>
+    <div class="header-date" id="headerDateDisplay"></div>
+  </div>
+  <div class="d-flex gap-2">
+    <button class="btn btn-light rounded-circle shadow-sm" style="width:40px; height:40px; padding:0; display:flex; justify-content:center; align-items:center;" onclick="refreshApp()" title="Refresh App"><i class="bi bi-arrow-clockwise text-primary fs-5"></i></button>
+    <button class="btn btn-light rounded-circle shadow-sm" style="width:40px; height:40px; padding:0; display:flex; justify-content:center; align-items:center;" onclick="switchPane('pane-eod')" title="End of Day Report"><i class="bi bi-send-check text-primary fs-5"></i></button>
+    <button class="btn btn-light rounded-circle shadow-sm" style="width:40px; height:40px; padding:0; display:flex; justify-content:center; align-items:center;" onclick="toggleDarkMode()" id="btnDarkMode" title="Toggle Dark Mode"><i class="bi bi-moon-stars text-primary fs-5"></i></button>
+    <button class="btn btn-light rounded-circle shadow-sm" style="width:40px; height:40px; padding:0; display:flex; justify-content:center; align-items:center;" onclick="toggleCalendar()"><i class="bi bi-calendar3 text-primary fs-5"></i></button>
+  </div>
+</div>

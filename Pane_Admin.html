@@ -1,0 +1,20 @@
+<!-- ============================================================
+// FILE: Pane_Admin.html | ROLE: Managerial Controls
+// DEPENDS ON: JS_Identity.html | DEPENDED ON BY: Index.html
+// ============================================================ -->
+<div id="pane-admin" class="glass-pane" style="display:none;">
+  <h4 class="mb-4"><i class="bi bi-shield-lock me-2"></i>Admin Panel</h4>
+  
+  <div id="adminLockScreen" class="text-center mt-5">
+    <i class="bi bi-lock-fill text-muted mb-3" style="font-size: 3rem;"></i>
+    <h6 class="fw-bold">Admin Access Locked</h6>
+    <p class="small text-muted mb-4">Please enter your 4-digit PIN.</p>
+    <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" id="adminPwdInput" class="form-control text-center mx-auto mb-3" style="max-width:200px; letter-spacing: 4px; font-size: 1.5rem;" placeholder="----" onkeydown="if(event.key === 'Enter') unlockAdmin()">
+    <button class="btn btn-primary rounded-pill fw-bold w-100" style="max-width:200px;" onclick="unlockAdmin()">Unlock</button>
+  </div>
+
+  <div id="adminContent" style="display:none;">
+    <h6 class="fw-bold text-primary mb-3">Recent Feedback</h6>
+    <div id="adminFeedbackList" class="overflow-auto" style="max-height: calc(100vh - 250px);"></div>
+  </div>
+</div>

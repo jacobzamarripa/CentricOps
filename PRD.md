@@ -56,8 +56,9 @@ Centric-Ops is an operational hub for **Centric Fiber field technicians**. It di
 ---
 
 ## Roadmap / Next Actions
-1.  [ ] Consolidate PRD.md (Completed)
-2.  [ ] Initialize AGENT_LOG.md (Next)
-3.  [ ] Create CLAUDE.md for Trinity Orchestration.
-4.  [ ] Refactor Index.html to externalize CSS/JS if GAS deployment allows (for maintainability).
+1.  [x] Consolidate PRD.md (Completed)
+2.  [x] Initialize AGENT_LOG.md (Completed)
+3.  [x] Create CLAUDE.md for Trinity Orchestration.
+4.  [x] Refactor Index.html to externalize CSS/JS (Modular Architecture).
 5.  [ ] Implement deep search for history across the entire history sheet.
+6.  [ ] Enhance "Desktop Command Center" with live metrics dashboard.

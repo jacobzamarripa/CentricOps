@@ -1,0 +1,82 @@
+<!-- ============================================================
+// FILE: JS_Admin.html | ROLE: Map Rendering & Community Management
+// DEPENDS ON: JS_Core.html, Leaflet | DEPENDED ON BY: Index.html
+// ============================================================ -->
+<script>
+  var adminMap = null;
+  function renderAdminMap() {
+    if (!adminMap) {
+      adminMap = L.map('adminMap').setView([30.2672, -97.7431], 10);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(adminMap);
+    }
+    // Logic to add markers based on APP_DATA... (Simplified for this snippet)
+  }
+
+  function autoGenLocId() {
+    var isEdit = document.getElementById('modOldId').value !== ""; if (isEdit) return; 
+    var name = document.getElementById('modCommName').value.trim().toUpperCase();
+    var city = document.getElementById('modCommCity').value.trim().toUpperCase();
+    if (!name || !city) return;
+    var cityChars = city.replace(/[^A-Z]/g, ''); var cCode = "XXXX";
+    if (cityChars.length > 0) { var firstLtr = cityChars.charAt(0); var rest = cityChars.slice(1).replace(/[AEIOU]/g, ''); cCode = (firstLtr + rest).padEnd(4, 'X').substring(0, 4); }
+    var words = name.split(/\s+/).filter(function(w) { return w.length > 0; }); var nCode = "XX";
+    if (words.length >= 2) { nCode = words[0].charAt(0) + words[1].charAt(0); } 
+    else if (words.length === 1 && words[0].length > 1) { var w = words[0]; nCode = w.charAt(0) + w.replace(/[AEIOU]/g, '').charAt(1); if(!nCode || nCode.length < 2) nCode = w.substring(0,2); }
+    if (name.includes('6')) nCode = '6C'; 
+    document.getElementById('modCommLoc').value = cCode + "TX" + nCode;
+  }
+
+  function saveComm() {
+    var oldId = unescape(document.getElementById('modOldId').value);
+    var c = { name: document.getElementById('modCommName').value.trim(), market: document.getElementById('modCommMkt').value, type: document.getElementById('modCommTyp').value, locationId: document.getElementById('modCommLoc').value.toUpperCase(), city: document.getElementById('modCommCity').value, state: "TX", zip: document.getElementById('modCommZip').value, vlan: document.getElementById('modCommVlan').value };
+    if(!c.name || !c.market || !c.type) return alert("Name, Market, and Type required.");
+    pendingCommSave = { c: c, oldId: oldId };
+    if (!oldId) {
+      var similarities = findSimilarCommunities(c.name);
+      if (similarities.length > 0) {
+         var listHtml = similarities.map(function(s){ return '<div class="poly-card p-2 mb-1 small fw-bold"><i class="bi bi-building me-2 text-muted"></i>' + s + '</div>'; }).join('');
+         document.getElementById('fuzzyMatchesList').innerHTML = listHtml;
+         document.getElementById('fuzzyModalOverlay').classList.add('show'); closeModal(); return;
+      }
+    }
+    confirmSaveComm(); 
+  }
+
+  function confirmSaveComm() {
+    var pending = pendingCommSave; closeFuzzyModal(); if (!pending) return;
+    var c = pending.c; var oldId = pending.oldId;
+    if(oldId && oldId !== c.name) delete APP_DATA.communities[oldId];
+    APP_DATA.communities[c.name] = c; applyCommFilter(); closeModal(); 
+    google.script.run.saveComm(c, oldId, getTechId()); pendingCommSave = null;
+  }
+
+  function openCommModal(escName) { 
+    var isEdit = !!escName; var name = isEdit ? unescape(escName) : ""; 
+    var c = isEdit ? APP_DATA.communities[name] : { market: "", type: "", locationId: "", city: "", zip: "", vlan: "" }; 
+    var mktOptions = ''; APP_DATA.markets.forEach(function(m) { mktOptions += '<option value="' + m + '" ' + (c.market === m ? 'selected' : '') + '>' + m + '</option>'; });
+    var html = '<h5 class="fw-bold mb-3">' + (isEdit ? 'Edit Community' : 'Add Community') + '</h5><input type="hidden" id="modOldId" value="' + (isEdit ? escName : '') + '"><span class="micro-label">Name</span><input type="text" id="modCommName" class="form-control mb-2" value="' + name + '" oninput="autoGenLocId()">';
+    html += '<div class="row g-2 mb-2"><div class="col-6"><span class="micro-label">Market</span><select id="modCommMkt" class="form-select">' + mktOptions + '</select></div><div class="col-6"><span class="micro-label">Type</span><select id="modCommTyp" class="form-select"><option value="SFU" ' + (c.type==='SFU'?'selected':'') + '>SFU</option><option value="MDU" ' + (c.type==='MDU'?'selected':'') + '>MDU</option><option value="TH" ' + (c.type==='TH'?'selected':'') + '>TH</option></select></div></div>';
+    html += '<div class="row g-2 mb-2"><div class="col-6"><span class="micro-label">City</span><input type="text" id="modCommCity" class="form-control" value="' + (c.city||'') + '" oninput="autoGenLocId()"></div><div class="col-6"><span class="micro-label">Zip</span><input type="text" id="modCommZip" class="form-control" value="' + (c.zip||'') + '"></div></div>';
+    html += '<div class="row g-2 mb-4"><div class="col-6"><span class="micro-label">Location ID</span><input type="text" id="modCommLoc" class="form-control" value="' + c.locationId + '"></div><div class="col-6"><span class="micro-label">VLAN</span><input type="text" id="modCommVlan" class="form-control" value="' + (c.vlan||'2001') + '"></div></div>';
+    html += '<div class="d-flex gap-2"><button class="btn btn-outline-secondary w-50" onclick="closeModal()">Cancel</button><button class="btn btn-primary w-50" onclick="saveComm()">' + (isEdit ? 'Update' : 'Create') + '</button></div>'; 
+    document.getElementById('modalContent').innerHTML = html; document.getElementById('modalOverlay').classList.add('show'); 
+    setTimeout(function() { initSelect('modCommMkt'); initSelect('modCommTyp'); }, 100); 
+  }
+
+  function findSimilarCommunities(newName) {
+    var term = newName.toLowerCase().replace(/[^a-z0-9]/g, ''); var matches = []; if(term.length < 3) return matches;
+    Object.values(APP_DATA.communities).forEach(function(c) { var existingName = c.name.toLowerCase().replace(/[^a-z0-9]/g, ''); if (existingName.includes(term) || term.includes(existingName)) { matches.push(c.name + ' (' + c.market + ')'); } });
+    return matches;
+  }
+
+  function applyCommFilter() { 
+    var typeVal = document.getElementById('commTypeFilter').value;
+    var mktVal = document.getElementById('commMktFilter').value;
+    var term = document.getElementById('commSearch').value.toLowerCase();
+    var comms = Object.values(APP_DATA.communities).filter(function(c) {
+      return (typeVal === 'All' || c.type === typeVal) && (mktVal === 'All' || c.market === mktVal) && (term === '' || c.name.toLowerCase().includes(term) || (c.city && c.city.toLowerCase().includes(term)));
+    });
+    renderCommunities(comms);
+  }
+  function closeFuzzyModal() { document.getElementById('fuzzyModalOverlay').classList.remove('show'); pendingCommSave = null; }
+</script>

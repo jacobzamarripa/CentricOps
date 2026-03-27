@@ -1,0 +1,35 @@
+<!-- ============================================================
+// FILE: Pane_History.html | ROLE: Audit & Scan History
+// DEPENDS ON: JS_History.html | DEPENDED ON BY: Index.html
+// ============================================================ -->
+<div id="pane-history" class="glass-pane">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h4 class="mb-0"><i class="bi bi-clock-history me-2"></i>History<span id="historyDateDisplay" style="font-size: 0.9rem; font-weight: 500; margin-left: 8px; color: var(--text-muted);"></span></h4>
+    <div id="historyViewToggles" class="btn-group" style="display:none;">
+      <button class="btn btn-sm btn-primary" id="btnHistTable" onclick="switchHistoryView('table')"><i class="bi bi-list-ul"></i></button>
+      <button class="btn btn-sm btn-outline-primary" id="btnHistChart" onclick="switchHistoryView('chart')"><i class="bi bi-bar-chart-fill"></i></button>
+    </div>
+    <select id="histFilter" class="form-select form-select-sm w-auto fw-bold text-primary border-primary" onchange="renderHistory()" style="padding: 4px 25px 4px 10px; display: none;">
+      <option value="mine">My Scans</option>
+      <option value="all">All Scans</option>
+    </select>
+  </div>
+  <div id="teamStatusDesktop" class="desktop-only mb-3"></div>
+  <div id="historySearchContainer" style="display:none;">
+    <div class="d-flex gap-2 mb-3">
+      <input type="text" id="histSearch" class="form-control" placeholder="Search address, ID, community..." onkeyup="renderHistory()">
+      <select id="histGroupBy" class="form-select w-auto desktop-only text-primary fw-bold" onchange="renderHistory()" style="display:none;">
+        <option value="none">Group: None</option>
+        <option value="tech">Group: Tech</option>
+        <option value="type">Group: Type</option>
+        <option value="date">Group: Date</option>
+      </select>
+    </div>
+    <div class="micro-label mb-3 text-primary"><i class="bi bi-info-circle me-1"></i>Tap to instantly reload codes</div>
+    <div id="historyList"></div>
+    <div id="historyChartContainer" style="display:none;" class="mt-3">
+      <canvas id="historyChart"></canvas>
+    </div>
+    <button id="btnLoadFullHistory" class="btn btn-outline-primary w-100 rounded-pill mt-3 fw-bold small" onclick="loadFullHistory()">Load Full History (30 Days)</button>
+  </div>
+</div>

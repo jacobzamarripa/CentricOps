@@ -1,0 +1,63 @@
+<!-- ============================================================
+// FILE: JS_Provisioning.html | ROLE: QR & Community Logic
+// DEPENDS ON: JS_Core.html | DEPENDED ON BY: Index.html
+// ============================================================ -->
+<script>
+  function calculateProvisioning(bypassAutoSelect) {
+    var btn = document.getElementById('btnGen');
+    var mkt = document.getElementById('mkt').value;
+    var typ = document.getElementById('typ').value;
+    var comm = document.getElementById('comm').value;
+    var addr = document.getElementById('addr').value.trim();
+    var unit = document.getElementById('unit').value.trim();
+    if(!mkt || !typ || !comm || !addr) return alert("Please fill out Market, Type, Community, and Address.");
+    
+    btn.innerText = "Generating...";
+    var successBox = document.getElementById('successBox');
+    var errorBox = document.getElementById('errorBox');
+    successBox.style.display = 'none'; errorBox.style.display = 'none';
+    document.getElementById('qrResults').style.display = 'block';
+
+    google.script.run.withSuccessHandler(function(res) {
+      btn.innerText = "Generate QRs";
+      if(res.error) { errorBox.innerText = res.error; errorBox.style.display = 'block'; return; }
+      
+      var html = '<div class="desktop-qr-grid">';
+      res.codes.forEach(function(c) {
+        html += '<div class="qr-item"><div class="d-flex align-items-center gap-2"><img src="' + c.qr + '" class="qr-img"><div><div class="micro-label">' + c.label + '</div><div class="data-font">' + c.value + '</div></div></div><button class="btn btn-outline-primary btn-copy-dense" onclick="copyText(\'' + c.value + '\', this)">COPY</button></div>';
+      });
+      html += '</div>';
+      successBox.innerHTML = html; successBox.style.display = 'block';
+      
+      var prompt = document.getElementById('trackPromptBtn');
+      if (prompt) prompt.style.display = 'block';
+      
+      if (!bypassAutoSelect) loadActiveJob(addr, comm, unit);
+    }).getProvisioningCodes({ mkt: mkt, typ: typ, comm: comm, addr: addr, unit: unit }, getTechId());
+  }
+
+  function filterComms() {
+    var mkt = document.getElementById('mkt').value;
+    var typ = document.getElementById('typ').value;
+    var sel = document.getElementById('comm');
+    sel.innerHTML = '<option value="">-- Community --</option>';
+    if(!mkt || !typ) { sel.disabled = true; return; }
+    sel.disabled = false;
+    Object.values(APP_DATA.communities).filter(function(c) { return c.market === mkt && c.type === typ; }).sort(function(a,b) { return a.name.localeCompare(b.name); }).forEach(function(c) { sel.innerHTML += '<option value="' + c.name + '">' + c.name + '</option>'; });
+  }
+
+  function copyText(txt, btn) { navigator.clipboard.writeText(txt).then(function() { var old = btn.innerText; btn.innerText = "COPIED!"; btn.classList.replace('btn-outline-primary', 'btn-success'); setTimeout(function(){ btn.innerText = old; btn.classList.replace('btn-success', 'btn-outline-primary'); }, 1500); }); }
+
+  function renderCommunities(comms) {
+    var mContainer = document.getElementById('commCardsMobile');
+    var dContainer = document.querySelector('#commTableDesktop tbody');
+    if(!mContainer || !dContainer) return;
+    var mHtml = ''; var dHtml = '';
+    Object.values(comms).sort(function(a,b) { return a.name.localeCompare(b.name); }).forEach(function(c) {
+      var escName = escape(c.name);
+      mHtml += '<div class="poly-card dense-card" onclick="openCommModal(\'' + escName + '\')"><div class="d-flex justify-content-between mb-2"><span class="status-pill" style="background-color:' + getMktColor(c.market) + ';">' + c.market + '</span><span class="micro-label">' + c.type + '</span></div><div class="fw-bold">' + c.name + '</div><div class="small text-muted mt-1">' + (c.city || 'N/A') + ', ' + (c.zip || 'N/A') + '<br><span class="micro-label text-primary mt-1">Loc ID: ' + c.locationId + '</span></div><div class="d-flex gap-2 mt-3"><button class="btn btn-outline-primary btn-sm rounded-pill w-100 fw-bold" onclick="event.stopPropagation(); regenQR(\'\', \'' + escName + '\')"><i class="bi bi-qr-code"></i></button><button class="btn btn-outline-secondary btn-sm rounded-pill w-100 fw-bold" onclick="event.stopPropagation(); openCommModal(\'' + escName + '\')"><i class="bi bi-pencil"></i></button></div></div>';
+      dHtml += '<tr><td class="fw-bold">' + c.name + '</td><td><span class="status-pill" style="background-color:' + getMktColor(c.market) + ';">' + c.market + '</span></td><td><span class="badge bg-light text-dark border">' + c.type + '</span></td><td>' + (c.city||'') + '</td><td class="data-font">' + (c.zip||'') + '</td><td class="data-font text-primary">' + c.locationId + '</td><td class="data-font">' + (c.vlan||'2001') + '</td><td class="text-end"><div class="d-flex gap-2 justify-content-end"><button class="btn btn-sm btn-outline-primary rounded-circle" onclick="regenQR(\'\', \'' + escName + '\')" title="Regen QRs"><i class="bi bi-qr-code"></i></button><button class="btn btn-sm btn-outline-secondary rounded-circle" onclick="openCommModal(\'' + escName + '\')" title="Edit"><i class="bi bi-pencil"></i></button></div></td></tr>';
+    });
+    mContainer.innerHTML = mHtml; dContainer.innerHTML = dHtml;
+  }
+</script>

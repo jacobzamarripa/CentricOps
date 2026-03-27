@@ -127,6 +127,20 @@
     .desktop-only { display: block; }
     .mobile-only { display: none !important; }
 
+    /* SIDEBAR NAVIGATION */
+    .app-container { display: flex; height: 100vh; }
+    .sidebar { width: 80px; background: var(--bg-glass); backdrop-filter: blur(24px); border-right: 1px solid var(--border-glass); display: flex; flex-direction: column; align-items: center; padding: 20px 0; gap: 20px; z-index: 1005; transition: width 0.3s; }
+    .sidebar:hover { width: 200px; }
+    .sidebar-item { color: var(--text-muted); font-size: 1.5rem; cursor: pointer; transition: all 0.3s; padding: 12px; border-radius: 16px; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+    .sidebar-item:hover, .sidebar-item.active { color: white; background: var(--accent-active); box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); width: 180px; justify-content: flex-start; padding-left: 15px; }
+    .sidebar-label { font-size: 0.85rem; font-weight: 800; margin-left: 15px; white-space: nowrap; display: none; text-transform: uppercase; letter-spacing: 0.5px; }
+    .sidebar:hover .sidebar-label { display: block; }
+    .sidebar:hover .sidebar-item { width: 170px; justify-content: flex-start; padding-left: 15px; }
+
+    .main-content { flex: 1; height: 100vh; overflow: hidden; position: relative; }
+    .app-header { left: 80px; }
+    .sidebar:hover ~ .main-content .app-header { left: 200px; }
+
     /* DENSE TABBED QR LAYOUT FOR DESKTOP */
     .desktop-qr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .desktop-qr-grid > .qr-item { margin-bottom: 0 !important; }

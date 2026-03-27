@@ -1,3 +1,7 @@
+<!-- ============================================================
+// FILE: Index.html | ROLE: Main Application Entry (SPA)
+// DEPENDS ON: CSS_Styles, JS_Modules, Partials
+// ============================================================ -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -11,305 +15,51 @@
   <?!= include('CSS_Styles') ?>
   <?!= include('CSS_Mobile') ?>
 </head>
-<body>
+<body class="desktop-command-center">
 
-  <div id="loader" class="loader-bg">
-    <div class="spinner-border text-primary mb-4" style="width: 2.5rem; height: 2.5rem; border-width: 0.25em;"></div>
-    <div class="progress-track"><div id="loaderProgress" class="progress-fill"></div></div>
-    <div id="loaderText" style="font-family: monospace; font-size: 12px; color: var(--text-muted);">Connecting to Master DB...</div>
-  </div>
+  <?!= include('Part_Loader') ?>
 
-  <div id="modalOverlay" class="modal-overlay"><div class="modal-glass" id="modalContent"></div></div>
-  <div id="fuzzyModalOverlay" class="modal-overlay">
-    <div class="modal-glass text-center">
-      <i class="bi bi-exclamation-triangle-fill text-warning" style="font-size: 3rem;"></i>
-      <h5 class="fw-bold mt-2 mb-3">Similar Communities Found</h5>
-      <p class="small text-muted">The community you are adding closely matches existing records. Please review them to avoid creating a duplicate.</p>
-      <div id="fuzzyMatchesList" class="text-start mb-4 overflow-auto" style="max-height: 150px;"></div>
-      <div class="d-flex gap-2">
-        <button class="btn btn-outline-secondary w-50 rounded-pill fw-bold" onclick="closeFuzzyModal()">Cancel Add</button>
-        <button class="btn btn-warning w-50 rounded-pill fw-bold" onclick="confirmSaveComm()">Add Anyway</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="app-header">
-    <div class="d-flex flex-column">
-      <div class="header-title">Centric Ops</div>
-      <div class="header-date" id="headerDateDisplay"></div>
-    </div>
-    <div class="d-flex gap-2">
-      <button class="btn btn-light rounded-circle shadow-sm" style="width:40px; height:40px; padding:0; display:flex; justify-content:center; align-items:center;" onclick="refreshApp()" title="Refresh App"><i class="bi bi-arrow-clockwise text-primary fs-5"></i></button>
-      <button class="btn btn-light rounded-circle shadow-sm" style="width:40px; height:40px; padding:0; display:flex; justify-content:center; align-items:center;" onclick="switchPane('pane-eod')" title="End of Day Report"><i class="bi bi-send-check text-primary fs-5"></i></button>
-      <button class="btn btn-light rounded-circle shadow-sm" style="width:40px; height:40px; padding:0; display:flex; justify-content:center; align-items:center;" onclick="toggleDarkMode()" id="btnDarkMode" title="Toggle Dark Mode"><i class="bi bi-moon-stars text-primary fs-5"></i></button>
-      <button class="btn btn-light rounded-circle shadow-sm" style="width:40px; height:40px; padding:0; display:flex; justify-content:center; align-items:center;" onclick="toggleCalendar()"><i class="bi bi-calendar3 text-primary fs-5"></i></button>
-    </div>
-  </div>
-
-  <div id="calendarWidget" class="calendar-popup" style="display:none;">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <button class="btn btn-light rounded-circle shadow-sm" style="width:36px; height:36px; padding:0;" onclick="changeMonth(-1)"><i class="bi bi-chevron-left text-muted"></i></button>
-      <div class="fw-bold fs-5" id="calMonthYear"></div>
-      <button class="btn btn-light rounded-circle shadow-sm" style="width:36px; height:36px; padding:0;" onclick="changeMonth(1)"><i class="bi bi-chevron-right text-muted"></i></button>
-    </div>
-    <div class="calendar-grid cal-header-row mb-2"><div>S</div><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div></div>
-    <div class="calendar-grid" id="calDays"></div>
-  </div>
-
-  <div class="app-viewport" id="mainViewport">
+  <div class="app-container">
     
-    <div id="pane-apps" class="glass-pane active-pane">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <h4 class="mb-0"><i class="bi bi-calendar2-check me-2"></i>Schedule</h4>
-        <div id="displayTechId" class="badge bg-light text-dark border shadow-sm" style="cursor: pointer;" onclick="checkIdentity(true)" title="Change Identity"></div>
-      </div>
-      <div id="techTabsContainer" class="mb-3 tech-tabs-wrapper" style="display:none;"></div>
-      <div id="apptList"></div>
-      <button class="btn btn-outline-secondary w-100 rounded-pill mt-2 fw-bold" onclick="openApptModal()">+ Add Task</button>
-      
-      <div class="text-center opacity-25 mt-5">
-        <span class="micro-label" style="font-size:8px;">Crafted by</span>
-        <div class="fw-bold" style="font-size:0.75rem; letter-spacing:1px; text-transform:uppercase;">Jacob Zamarripa</div>
-      </div>
+    <!-- DESKTOP SIDEBAR -->
+    <div class="sidebar desktop-only">
+      <div class="sidebar-item active" onclick="switchPane('pane-apps', this)"><i class="bi bi-calendar-event"></i><span class="sidebar-label">Schedule</span></div>
+      <div class="sidebar-item" onclick="switchPane('pane-tracker', this)"><i class="bi bi-clipboard-check"></i><span class="sidebar-label">Tracker</span></div>
+      <div class="sidebar-item" onclick="switchPane('pane-tool', this)"><i class="bi bi-qr-code-scan"></i><span class="sidebar-label">Provisioning</span></div>
+      <div class="sidebar-item" onclick="switchPane('pane-history', this)"><i class="bi bi-clock-history"></i><span class="sidebar-label">History</span></div>
+      <div class="sidebar-item" onclick="switchPane('pane-map', this)"><i class="bi bi-geo-alt"></i><span class="sidebar-label">Team Map</span></div>
+      <div class="sidebar-item" onclick="switchPane('pane-comm', this)"><i class="bi bi-building"></i><span class="sidebar-label">Communities</span></div>
     </div>
 
-    <div id="pane-tracker" class="glass-pane">
-      <h4 class="mb-3"><i class="bi bi-clipboard-check me-2"></i>Work Tracker</h4>
-      <p class="small text-muted mb-3">Log your completed work for the active address.</p>
-      <input type="hidden" id="trackApptId">
-      
-      <div class="poly-card p-3 mb-3 bg-light" id="trackBanner" style="border-left: 5px solid var(--border-glass); transition: border-color 0.3s;">
-        <span class="micro-label">Current Job</span>
-        <div class="fw-bold fs-6 text-primary" id="trackAddr">Select an address from Schedule</div>
-        <div class="small text-muted" id="trackComm"></div>
+    <div class="main-content">
+      <?!= include('Part_Header') ?>
+      <?!= include('Part_Calendar') ?>
+
+      <div class="app-viewport" id="mainViewport">
+        <?!= include('Pane_Schedule') ?>
+        <?!= include('Pane_Tracker') ?>
+        <?!= include('Pane_Provisioning') ?>
+        <?!= include('Pane_History') ?>
+        <?!= include('Pane_Map') ?>
+        <?!= include('Pane_Communities') ?>
+        <?!= include('Pane_EOD') ?>
+        <?!= include('Pane_Admin') ?>
       </div>
 
-      <span class="micro-label">Job Type</span>
-      <select id="trackJobType" class="form-select mb-3" onchange="handleJobTypeChange()"></select>
-      
-      <div id="trackFiberFields" style="display:none;">
-        <div class="row g-2 mb-3">
-          <div class="col-6">
-            <span class="micro-label">Light Level</span>
-            <input type="text" inputmode="decimal" id="trackLight" class="form-control" placeholder="e.g. -18.5">
-          </div>
-          <div class="col-6">
-            <span class="micro-label">Distance Jetted</span>
-            <input type="number" inputmode="numeric" pattern="[0-9]*" id="trackDistance" class="form-control" placeholder="e.g. 150">
-          </div>
-        </div>
+      <button id="fabFeedback" class="btn btn-warning text-dark rounded-circle shadow-lg" onclick="openFeedbackModal()" title="Submit Beta Feedback">
+        <i class="bi bi-chat-square-text-fill fs-4"></i>
+      </button>
 
-        <div class="row g-2 mb-3">
-          <div class="col-6">
-            <span class="micro-label">Tube / Splitter</span>
-            <select id="trackTubeColor" class="form-select"></select>
-          </div>
-          <div class="col-6">
-            <span class="micro-label">Port # / Fiber</span>
-            <select id="trackPortColor" class="form-select"></select>
-          </div>
-        </div>
-        
-        <span class="micro-label">Splice Count (s#)</span>
-        <input type="number" inputmode="numeric" pattern="[0-9]*" id="trackSplice" class="form-control mb-3" placeholder="e.g. 2">
-      </div>
-      
-      <div id="trackEquipmentFields" style="display:none;">
-        <button id="provPromptBtn" class="btn btn-sm btn-outline-primary w-100 rounded-pill mb-3 fw-bold" style="border-style: dashed;" onclick="jumpToProvisioning()"><i class="bi bi-qr-code-scan me-2"></i>Generate Provisioning QRs First</button>
-        
-        <div class="poly-card p-3 mb-3 bg-light border-primary border-opacity-25" style="border: 1px solid rgba(13, 110, 253, 0.15);">
-          <div class="fw-bold mb-3 text-primary" style="font-size: 0.85rem;"><i class="bi bi-router me-2"></i>Equipment Installed</div>
-          
-          <div class="mb-2">
-            <span class="micro-label">ONT / Main Router</span>
-            <input type="text" id="trackSerialOnt" class="form-control form-control-sm" placeholder="Scan or type ONT...">
-          </div>
-          
-          <div class="mb-2">
-            <div class="d-flex justify-content-between align-items-center mb-1">
-              <span class="micro-label mb-0">Mesh Nodes</span>
-              <button id="btnAddMesh" class="btn btn-sm btn-link py-0 px-1 text-decoration-none micro-label text-primary" onclick="addMeshField(event)">+ Add Mesh</button>
-            </div>
-            <input type="text" id="trackSerialMesh1" class="form-control form-control-sm mb-1" placeholder="Mesh 1 serial...">
-            <input type="text" id="trackSerialMesh2" class="form-control form-control-sm mb-1" placeholder="Mesh 2 serial..." style="display:none;">
-            <input type="text" id="trackSerialMesh3" class="form-control form-control-sm mb-1" placeholder="Mesh 3 serial..." style="display:none;">
-            <input type="text" id="trackSerialMesh4" class="form-control form-control-sm mb-1" placeholder="Mesh 4 serial..." style="display:none;">
-          </div>
-
-          <div>
-            <span class="micro-label">Doorbell</span>
-            <input type="text" id="trackSerialDoorbell" class="form-control form-control-sm" placeholder="Scan or type doorbell...">
-          </div>
-        </div>
-      </div>
-      
-      <span class="micro-label">Details / Notes</span>
-      <textarea id="trackNotes" class="form-control mb-3" rows="2" placeholder="Verified at NID..."></textarea>
-      
-      <button onclick="submitWorkTracker()" id="btnTrack" class="btn btn-primary w-100 rounded-pill py-2 fw-bold">Log Job</button>
-      
-      <div id="trackResult" style="display:none;" class="mt-3 text-center">
-        <div class="alert alert-success small fw-bold mb-2"><i class="bi bi-check-circle-fill me-1"></i> Job Logged Successfully</div>
-        <a id="trackFormLink" href="#" target="_blank" class="btn btn-outline-success btn-sm rounded-pill w-100 fw-bold">Open Pre-filled Google Form</a>
+      <!-- MOBILE DOCK -->
+      <div class="dock mobile-only">
+        <div class="dock-item active" onclick="switchPane('pane-apps', this)"><i class="bi bi-calendar-event"></i></div>
+        <div class="dock-item" onclick="switchPane('pane-tracker', this)"><i class="bi bi-clipboard-check"></i></div>
+        <div class="dock-item" onclick="switchPane('pane-tool', this)"><i class="bi bi-qr-code-scan"></i></div>
+        <div class="dock-item" onclick="switchPane('pane-history', this)"><i class="bi bi-clock-history"></i></div>
+        <div class="dock-item" onclick="switchPane('pane-map', this)"><i class="bi bi-geo-alt"></i></div>
+        <div class="dock-item" onclick="switchPane('pane-comm', this)"><i class="bi bi-building"></i></div>
       </div>
     </div>
-
-    <div id="pane-tool" class="glass-pane">
-      <h4 class="mb-3"><i class="bi bi-cpu me-2"></i>Provisioning</h4>
-      <div class="row g-2 mb-2">
-        <div class="col-6"><span class="micro-label">Market</span><select id="mkt" class="form-select" onchange="filterComms()"></select></div>
-        <div class="col-6"><span class="micro-label">Type</span><select id="typ" class="form-select" onchange="filterComms()"></select></div>
-      </div>
-      <span class="micro-label">Community</span><select id="comm" class="form-select mb-2" disabled></select>
-      <span class="micro-label">Street Address</span><input type="text" id="addr" class="form-control mb-2" placeholder="123 Main St">
-      <div id="unitContainer" style="display:none;"><span class="micro-label text-primary">Apt / Unit #</span><input type="text" id="unit" class="form-control mb-3"></div>
-      
-      <button onclick="calculateProvisioning()" id="btnGen" class="btn btn-magic w-100 rounded-pill py-2 mt-2">Generate QRs</button>
-      
-      <div id="qrResults" style="display:none;" class="mt-3 border-top pt-2">
-        <div id="errorBox" class="alert alert-danger fw-bold small text-center" style="display:none;"></div>
-        <div id="successBox" style="display:none;"></div>
-        
-        <button id="trackPromptBtn" class="btn btn-sm btn-outline-success w-100 rounded-pill mt-3 fw-bold" style="display:none; border-style: dashed;" onclick="jumpToTracker()"><i class="bi bi-clipboard-check me-2"></i>Log Installation in Tracker</button>
-      </div>
-    </div>
-
-    <div id="pane-history" class="glass-pane">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <h4 class="mb-0"><i class="bi bi-clock-history me-2"></i>History<span id="historyDateDisplay" style="font-size: 0.9rem; font-weight: 500; margin-left: 8px; color: var(--text-muted);"></span></h4>
-        <div id="historyViewToggles" class="btn-group" style="display:none;">
-          <button class="btn btn-sm btn-primary" id="btnHistTable" onclick="switchHistoryView('table')"><i class="bi bi-list-ul"></i></button>
-          <button class="btn btn-sm btn-outline-primary" id="btnHistChart" onclick="switchHistoryView('chart')"><i class="bi bi-bar-chart-fill"></i></button>
-        </div>
-        <select id="histFilter" class="form-select form-select-sm w-auto fw-bold text-primary border-primary" onchange="renderHistory()" style="padding: 4px 25px 4px 10px; display: none;">
-          <option value="mine">My Scans</option>
-          <option value="all">All Scans</option>
-        </select>
-      </div>
-      <div id="teamStatusDesktop" class="desktop-only mb-3"></div>
-      <div id="historySearchContainer" style="display:none;">
-        <div class="d-flex gap-2 mb-3">
-          <input type="text" id="histSearch" class="form-control" placeholder="Search address, ID, community..." onkeyup="renderHistory()">
-          <select id="histGroupBy" class="form-select w-auto desktop-only text-primary fw-bold" onchange="renderHistory()" style="display:none;">
-            <option value="none">Group: None</option>
-            <option value="tech">Group: Tech</option>
-            <option value="type">Group: Type</option>
-            <option value="date">Group: Date</option>
-          </select>
-        </div>
-        <div class="micro-label mb-3 text-primary"><i class="bi bi-info-circle me-1"></i>Tap to instantly reload codes</div>
-      </div>
-      <div id="historyListWrapper">
-        <div id="historyItemsMobile" class="mobile-only"></div>
-        <div id="historyTableContainer" class="desktop-only overflow-auto" style="border-radius: 16px; max-height: calc(100vh - 200px);">
-          <table class="custom-table" id="historyTableDesktop">
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Tech</th>
-                <th>Type</th>
-                <th>Address</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-      <div id="historyAnalyticsContainer" class="overflow-auto" style="display:none; border-radius: 16px; max-height: calc(100vh - 200px); padding-right:4px;">
-        <div class="poly-card p-3 mb-3"><canvas id="chartType" style="max-height: 250px;"></canvas></div>
-        <div class="poly-card p-3"><canvas id="chartTech" style="max-height: 250px;"></canvas></div>
-      </div>
-    </div>
-
-    <div id="pane-map" class="glass-pane">
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="mb-0" id="mapPaneTitle"><i class="bi bi-geo-alt-fill me-2"></i>Team Locations</h4>
-        <button class="btn btn-sm btn-light rounded-circle shadow-sm text-primary" onclick="renderAdminMap()"><i class="bi bi-arrow-clockwise"></i></button>
-      </div>
-      <div id="adminMap" style="height: 300px; border: 1px solid var(--border-glass); border-radius: 12px; z-index: 1;"></div>
-    </div>
-
-    <div id="pane-comm" class="glass-pane">
-      <div class="d-flex justify-content-between align-items-center mb-4">
-        <h4 class="mb-0"><i class="bi bi-building me-2"></i>Communities</h4>
-        <button class="btn btn-dark rounded-circle" style="width:38px;height:38px;padding:0;" onclick="openCommModal()"><i class="bi bi-plus"></i></button>
-      </div>
-      <div class="d-flex gap-2 mb-3 overflow-auto pb-1" id="commFilters" style="scrollbar-width: none;">
-        <select id="commTypeFilter" class="form-select form-select-pill" onchange="applyCommFilter()"><option value="All">All Types</option></select>
-        <select id="commMktFilter" class="form-select form-select-pill" onchange="applyCommFilter()"><option value="All">All Markets</option></select>
-      </div>
-      <input type="text" id="commSearch" class="form-control mb-4" placeholder="Search communities..." onkeyup="applyCommFilter()">
-      <div id="commCardsMobile" class="mobile-only"></div>
-      <div class="desktop-only overflow-auto" style="border-radius: 16px; max-height: calc(100vh - 280px);">
-        <table class="custom-table" id="commTableDesktop">
-          <thead>
-            <tr>
-              <th>Community</th>
-              <th>Market</th>
-              <th>Type</th>
-              <th>City</th>
-              <th>Zip</th>
-              <th>Location ID</th>
-              <th>VLAN</th>
-              <th class="text-end">Action</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-
-    <div id="pane-eod" class="glass-pane">
-      <h4 class="mb-4"><i class="bi bi-send-check me-2"></i>EOD Report</h4>
-      
-      <span class="micro-label">Partner Name (Optional)</span>
-      <select id="eodPartner" class="form-select mb-3"><option value="">-- None --</option></select>
-      
-      <div class="row g-2 mb-3">
-        <div class="col-6"><span class="micro-label">My Hours</span><input type="number" id="eodMyHours" class="form-control" placeholder="e.g. 8"></div>
-        <div class="col-6"><span class="micro-label">Partner Hours</span><input type="number" id="eodPartnerHours" class="form-control" placeholder="e.g. 8"></div>
-      </div>
-      
-      <span class="micro-label">Total Mileage</span>
-      <input type="number" id="eodMileage" class="form-control mb-4" placeholder="e.g. 45">
-
-      <span class="micro-label">Send Report To</span>
-      <input type="email" id="eodEmail" class="form-control mb-4" placeholder="manager@centricfiber.com">
-      
-      <button onclick="sendEOD()" id="btnEod" class="btn btn-dark w-100 rounded-pill py-2 fw-bold">Send EOD Report</button>
-      <div id="eodSuccess" class="alert alert-success mt-3 small fw-bold text-center" style="display:none;">Report Sent!</div>
-    </div>
-
-    <div id="pane-admin" class="glass-pane" style="display:none;">
-      <h4 class="mb-4"><i class="bi bi-shield-lock me-2"></i>Admin Panel</h4>
-      
-      <div id="adminLockScreen" class="text-center mt-5">
-        <i class="bi bi-lock-fill text-muted mb-3" style="font-size: 3rem;"></i>
-        <h6 class="fw-bold">Admin Access Locked</h6>
-        <p class="small text-muted mb-4">Please enter your 4-digit PIN.</p>
-        <input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" id="adminPwdInput" class="form-control text-center mx-auto mb-3" style="max-width:200px; letter-spacing: 4px; font-size: 1.5rem;" placeholder="----" onkeydown="if(event.key === 'Enter') unlockAdmin()">
-        <button class="btn btn-primary rounded-pill fw-bold w-100" style="max-width:200px;" onclick="unlockAdmin()">Unlock</button>
-      </div>
-
-      <div id="adminContent" style="display:none;">
-        <h6 class="fw-bold text-primary mb-3">Recent Feedback</h6>
-        <div id="adminFeedbackList" class="overflow-auto" style="max-height: calc(100vh - 250px);"></div>
-      </div>
-    </div>
-
-  </div>
-
-  <button id="fabFeedback" class="btn btn-warning text-dark rounded-circle shadow-lg" onclick="openFeedbackModal()" title="Submit Beta Feedback">
-    <i class="bi bi-chat-square-text-fill fs-4"></i>
-  </button>
-
-  <div class="dock">
-    <div class="dock-item active" onclick="switchPane('pane-apps', this)"><i class="bi bi-calendar-event"></i></div>
-    <div class="dock-item" onclick="switchPane('pane-tracker', this)"><i class="bi bi-clipboard-check"></i></div>
-    <div class="dock-item" onclick="switchPane('pane-tool', this)"><i class="bi bi-qr-code-scan"></i></div>
-    <div class="dock-item" onclick="switchPane('pane-history', this)"><i class="bi bi-clock-history"></i></div>
-    <div class="dock-item" onclick="switchPane('pane-map', this)"><i class="bi bi-geo-alt"></i></div>
-    <div class="dock-item" onclick="switchPane('pane-comm', this)"><i class="bi bi-building"></i></div>
   </div>
 
   <?!= include('JS_Modules') ?>

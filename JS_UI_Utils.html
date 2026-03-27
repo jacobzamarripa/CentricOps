@@ -1,0 +1,61 @@
+<!-- ============================================================
+// FILE: JS_UI_Utils.html | ROLE: Common UI Components & Navigation
+// DEPENDS ON: JS_Core.html | DEPENDED ON BY: Index.html
+// ============================================================ -->
+<script>
+  function switchPane(id, el) {
+    if (window.innerWidth <= 1024) {
+      document.querySelectorAll('.glass-pane').forEach(function(p) { p.classList.remove('active-pane'); });
+      document.querySelectorAll('.dock-item').forEach(function(d) { d.classList.remove('active'); });
+      document.getElementById(id).classList.add('active-pane'); 
+      if(el) el.classList.add('active');
+      window.scrollTo(0,0);
+      if(el) el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    } else {
+      var target = document.getElementById(id);
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      var origBorder = target.style.border;
+      target.style.border = "2px solid var(--accent-active)";
+      setTimeout(function() { target.style.border = origBorder; }, 2000);
+    }
+  }
+
+  window.selectedTechFilter = 'All';
+  function renderTechTabs() {
+    var container = document.getElementById('techTabsContainer');
+    if (!isManager()) { container.style.display = 'none'; return; }
+    container.style.display = 'flex';
+
+    var techMap = {};
+    APP_DATA.roster.forEach(function(e) { var id = e.short || e.name; techMap[id] = e.name; });
+    var techs = Object.keys(techMap).sort();
+
+    var fiberColors = [ { bg: '#3b82f6', fg: '#fff' }, { bg: '#f97316', fg: '#fff' }, { bg: '#22c55e', fg: '#fff' }, { bg: '#8b4513', fg: '#fff' }, { bg: '#64748b', fg: '#fff' }, { bg: '#ffffff', fg: '#000' }, { bg: '#ef4444', fg: '#fff' }, { bg: '#000000', fg: '#fff' }, { bg: '#eab308', fg: '#000' }, { bg: '#8b5cf6', fg: '#fff' }, { bg: '#f43f5e', fg: '#fff' }, { bg: '#06b6d4', fg: '#000' } ];
+    var html = '<div class="tech-tab ' + (window.selectedTechFilter === 'All' ? 'active' : '') + '" data-tech="All" onclick="selectTechFilter(\'All\')" style="background:#000000; color:#ffffff; border-color:#000000;">All</div>';
+    techs.forEach(function(t, i) {
+      var color = fiberColors[i % fiberColors.length];
+      var border = color.bg === '#ffffff' ? 'var(--border-glass)' : color.bg;
+      var isActive = window.selectedTechFilter === t ? 'active' : '';
+      var fullName = toProperCase(techMap[t] || t);
+      var displayTechShort = fullName.split(' ')[0]; 
+      html += '<div class="tech-tab ' + isActive + '" data-tech="' + t + '" onclick="selectTechFilter(\'' + t + '\')" style="background:' + color.bg + '; color:' + color.fg + '; border-color:' + border + ';" title="' + fullName + '"><span class="tech-name-short">' + displayTechShort + '</span><span class="tech-name-full">' + fullName + '</span></div>';
+    });
+    container.innerHTML = html;
+  }
+
+  function selectTechFilter(tech) {
+    window.selectedTechFilter = tech;
+    var tabs = document.querySelectorAll('.tech-tab');
+    tabs.forEach(function(t) { if (t.getAttribute('data-tech') === tech) t.classList.add('active'); else t.classList.remove('active'); });
+    renderAppointments(); renderHistory(); renderAdminMap();
+  }
+
+  function fillDropdown(id, list, label) {
+    var sel = document.getElementById(id); if(!sel) return;
+    sel.innerHTML = '<option value="">-- ' + label + ' --</option>';
+    list.forEach(function(item) { sel.innerHTML += '<option value="' + item + '">' + item + '</option>'; });
+  }
+
+  function jumpToProvisioning() { switchPane('pane-tool', document.querySelector('.dock-item[onclick*="pane-tool"]')); }
+  function jumpToTracker() { switchPane('pane-tracker', document.querySelector('.dock-item[onclick*="pane-tracker"]')); }
+</script>

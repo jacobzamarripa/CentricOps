@@ -1,0 +1,71 @@
+<!-- ============================================================
+// FILE: JS_Appointments.html | ROLE: Schedule & Task Rendering
+// DEPENDS ON: JS_Core.html | DEPENDED ON BY: Index.html
+// ============================================================ -->
+<script>
+  function parseApptTime(a) {
+    if (a.rawDate && a.rawTime) return { date: new Date(a.rawDate + 'T' + a.rawTime + ':00'), mins: a.durMins || 60 };
+    var now = new Date();
+    var m = a.time ? a.time.match(/(\d+)\/(\d+)\s*•\s*(\d+):(\d+)\s*(AM|PM)/i) : null;
+    if (m) {
+      var mo = parseInt(m[1]) - 1, d = parseInt(m[2]), h = parseInt(m[3]), min = parseInt(m[4]), ampm = m[5].toUpperCase();
+      if (ampm === 'PM' && h < 12) h += 12;
+      if (ampm === 'AM' && h === 12) h = 0;
+      return { date: new Date(now.getFullYear(), mo, d, h, min), mins: 60 };
+    }
+    return { date: now, mins: 60 };
+  }
+
+  function renderAppointments() {
+    var list = document.getElementById('apptList');
+    var appts = APP_DATA.appointments || [];
+    if (!isManager()) { appts = appts.filter(function(a) { return a.user === getTechId(); }); } 
+    else if (window.selectedTechFilter !== 'All') { appts = appts.filter(function(a) { return a.user === window.selectedTechFilter; }); }
+    if (!appts.length) { list.innerHTML = '<div class="micro-label text-center mt-4">No appointments found.</div>'; return; }
+    appts.sort(function(a, b) { return parseApptTime(a).date.getTime() - parseApptTime(b).date.getTime(); });
+    var html = '<div class="timeline-wrapper" id="timelineWrapper"><div class="timeline-container">';
+    for (var i = 5; i <= 22; i++) { var displayHour = i === 0 ? '12 AM' : (i < 12 ? i + ' AM' : (i === 12 ? '12 PM' : (i - 12) + ' PM')); html += '<div class="timeline-hour"><div class="timeline-hour-text">' + displayHour + '</div><div class="timeline-line"></div></div>'; }
+    appts.forEach(function(a) {
+      var parsed = parseApptTime(a); var dt = parsed.date; var dur = parsed.mins;
+      var top = ((dt.getHours() - 5) * 60) + dt.getMinutes(); var height = dur; 
+      var escAddr = (a.address || "").replace(/'/g, "\\'"); var escComm = (a.comm || "").replace(/'/g, "\\'"); var escUnit = (a.unit || "").replace(/'/g, "\\'"); var escJobType = (a.jobType || "").replace(/'/g, "\\'");
+      var isLogged = a.status === 'Logged'; var now = new Date(); var endTime = new Date(dt.getTime() + dur * 60000); var isPassed = !isLogged && now > endTime;
+      var bgCol = 'rgba(59, 130, 246, 0.08)'; var bdrCol = 'var(--accent-active)'; var timeCol = 'var(--accent-active)';
+      if (isLogged) { bgCol = 'rgba(34, 197, 94, 0.08)'; bdrCol = '#22c55e'; timeCol = '#22c55e'; }
+      else if (isPassed) { bgCol = 'rgba(239, 68, 68, 0.08)'; bdrCol = '#ef4444'; timeCol = '#ef4444'; }
+      html += '<div class="timeline-event" style="top:' + top + 'px; height:' + height + 'px; background:' + bgCol + '; border-left: 4px solid ' + bdrCol + ';" onclick="loadActiveJob(\'' + escAddr + '\', \'' + escComm + '\', \'' + escUnit + '\', \'' + escJobType + '\', \'' + a.id + '\')">';
+      html += '<div style="position:absolute; right:4px; top:4px; display:flex; gap:8px;" onclick="event.stopPropagation()"><div style="cursor:pointer;" class="text-primary opacity-50" onclick="openApptModal(\'' + a.id + '\')"><i class="bi bi-pencil-fill"></i></div><div style="cursor:pointer;" class="text-danger opacity-50" onclick="deleteAppt(\'' + a.id + '\')"><i class="bi bi-trash-fill"></i></div></div>';
+      var techBadge = ''; if (isManager() && window.selectedTechFilter === 'All' && a.user) { techBadge = '<span class="badge bg-secondary ms-2" style="font-size:8px;">' + toProperCase(a.user) + '</span>'; }
+      html += '<div class="timeline-event-title pe-4 d-flex align-items-center">' + a.name + techBadge + '</div>';
+      if (height >= 30) { html += '<div class="timeline-event-time" style="color:' + timeCol + ';">' + a.time + '</div>'; }
+      if (height >= 50) { html += '<div class="timeline-event-addr">' + a.address + '</div>'; }
+      html += '</div>';
+    });
+    html += '</div></div>'; list.innerHTML = html;
+    setTimeout(function() { var firstEvent = document.querySelector('.timeline-event'); if (firstEvent) { var wrapper = document.getElementById('timelineWrapper'); wrapper.scrollTop = Math.max(0, parseInt(firstEvent.style.top) - 60); } }, 100);
+  }
+
+  function loadActiveJob(addr, commName, unit, jobType, apptId) {
+    document.getElementById('addr').value = addr || "";
+    document.getElementById('unit').value = unit || "";
+    document.getElementById('trackAddr').innerText = addr || "No Address Provided";
+    var trackApptIdEl = document.getElementById('trackApptId');
+    if(trackApptIdEl) trackApptIdEl.value = apptId || "";
+    if (commName && APP_DATA.communities[commName]) {
+      var cData = APP_DATA.communities[commName];
+      document.getElementById('mkt').value = cData.market;
+      document.getElementById('typ').value = cData.type;
+      filterComms();
+      setTimeout(function() { document.getElementById('comm').value = commName; }, 100);
+      document.getElementById('trackComm').innerText = commName;
+      var banner = document.getElementById('trackBanner');
+      if (banner) banner.style.borderLeftColor = getMktColor(cData.market);
+    } else { document.getElementById('trackComm').innerText = commName || "Select Community in Provisioning"; }
+    if (jobType) {
+      var jtSelect = document.getElementById('trackJobType');
+      for(var i=0; i<jtSelect.options.length; i++) { if(jtSelect.options[i].value === jobType) { jtSelect.selectedIndex = i; break; } }
+      handleJobTypeChange();
+    }
+    if(window.innerWidth <= 1024) switchPane('pane-tracker', document.querySelector('.dock-item[onclick*="pane-tracker"]'));
+  }
+</script>

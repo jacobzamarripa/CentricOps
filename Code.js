@@ -397,5 +397,5 @@ function forceAuthorize() {
  * Helper function to include partial HTML files.
  */
 function include(filename) {
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+  return HtmlService.createTemplateFromFile(filename).evaluate().getContent();
 }

@@ -1,0 +1,102 @@
+<!-- ============================================================
+// FILE: JS_Auth.html | ROLE: Identity Verification & Admin Panel
+// DEPENDS ON: JS_Core.html | DEPENDED ON BY: Index.html
+// ============================================================ -->
+<script>
+  function checkIdentity(force = false) {
+    var techId = localStorage.getItem('centric_tech_id');
+    if (!techId || force) {
+      var html = '<h5 class="fw-bold mb-3 text-primary">' + (force ? 'Change Identity' : 'Welcome to Field Ops') + '</h5><p class="small text-muted mb-4">Please verify your identity against the Master Roster.</p><select id="inputTechId" class="form-select mb-4"><option value="">-- Employee Roster --</option>';
+      APP_DATA.roster.forEach(function(emp) { html += '<option value="' + (emp.short ? emp.short : emp.name) + '" ' + (techId === (emp.short ? emp.short : emp.name) ? 'selected' : '') + '>' + toProperCase(emp.name) + ' (' + emp.role + ')</option>'; });
+      html += '</select>';
+      if (force) { html += '<div class="d-flex gap-2"><button class="btn btn-outline-secondary w-50 rounded-pill fw-bold" onclick="closeModal()">Cancel</button><button class="btn btn-primary w-50 rounded-pill fw-bold" onclick="processIdentitySelection(' + force + ')">Next</button></div>'; }
+      else { html += '<button class="btn btn-primary w-100 rounded-pill fw-bold" onclick="processIdentitySelection(' + force + ')">Next</button>'; }
+      document.getElementById('modalContent').innerHTML = html; document.getElementById('modalOverlay').classList.add('show');
+      setTimeout(function() { initSelect('inputTechId'); }, 100);
+    } else { 
+      document.getElementById('displayTechId').innerHTML = toProperCase(techId) + ' <i class="bi bi-pencil-fill ms-1 opacity-50"></i>'; 
+      toggleAdminFeatures();
+    }
+  }
+  
+  var selectedIdentityVal = '';
+
+  function processIdentitySelection(force) {
+    var val = document.getElementById('inputTechId').value; 
+    if(!val) return alert("Please select your name."); 
+    selectedIdentityVal = val;
+    
+    var emp = APP_DATA.roster.find(function(e) { return (e.short ? e.short : e.name) === val || e.name === val; });
+    var existingPin = emp ? emp.password : '';
+    
+    if (existingPin) {
+      var html = '<h5 class="fw-bold mb-3 text-primary"><i class="bi bi-lock-fill me-2"></i>Enter PIN</h5><p class="small text-muted mb-4">Please enter your 4-digit PIN to verify your identity.</p><input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" id="verifyPinInput" class="form-control text-center mx-auto mb-4" style="max-width:200px; letter-spacing: 4px; font-size: 1.5rem;" placeholder="----"><div class="d-flex gap-2"><button class="btn btn-outline-secondary w-50 rounded-pill fw-bold" onclick="checkIdentity(' + force + ')">Back</button><button class="btn btn-primary w-50 rounded-pill fw-bold" onclick="verifyIdentityPin(\'' + existingPin + '\')">Verify</button></div>';
+      document.getElementById('modalContent').innerHTML = html;
+    } else {
+      var html = '<h5 class="fw-bold mb-3 text-primary"><i class="bi bi-key-fill me-2"></i>Create PIN</h5><div class="alert alert-warning small py-2 px-3 mb-3 text-start" style="line-height: 1.3;"><b>Disclaimer:</b> Please do NOT use a sensitive PIN or one you use elsewhere (like a bank). This is a simple, unsecure 4-digit PIN that administrators will be able to see.</div><p class="small text-muted mb-3">Create a 4-digit PIN to protect your identity.</p><input type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" id="createPinInput" class="form-control text-center mx-auto mb-4" style="max-width:200px; letter-spacing: 4px; font-size: 1.5rem;" placeholder="----"><div class="d-flex gap-2"><button class="btn btn-outline-secondary w-50 rounded-pill fw-bold" onclick="checkIdentity(' + force + ')">Back</button><button class="btn btn-primary w-50 rounded-pill fw-bold" id="btnCreatePin" onclick="createIdentityPin()">Save PIN</button></div>';
+      document.getElementById('modalContent').innerHTML = html;
+    }
+  }
+
+  function verifyIdentityPin(expectedPin) {
+    var enteredPin = document.getElementById('verifyPinInput').value;
+    if (enteredPin === expectedPin) { finalizeIdentitySave(); } 
+    else { alert("Incorrect PIN."); }
+  }
+
+  function createIdentityPin() {
+    var newPin = document.getElementById('createPinInput').value;
+    if (!newPin || newPin.length !== 4 || !/^\d{4}$/.test(newPin)) { return alert("Please enter a valid 4-digit PIN."); }
+    var btn = document.getElementById('btnCreatePin');
+    btn.innerText = "Saving...";
+    google.script.run.withSuccessHandler(function() {
+      var emp = APP_DATA.roster.find(function(e) { return (e.short ? e.short : e.name) === selectedIdentityVal || e.name === selectedIdentityVal; });
+      if (emp) emp.password = newPin;
+      finalizeIdentitySave();
+    }).withFailureHandler(function(err) { alert("Failed to save PIN: " + err.message); btn.innerText = "Save PIN"; }).updateUserPin(selectedIdentityVal, newPin);
+  }
+
+  function finalizeIdentitySave() { 
+    var val = selectedIdentityVal;
+    var oldId = localStorage.getItem('centric_tech_id'); 
+    if (oldId && oldId !== val) { google.script.run.logIdentityChange(oldId, val); } 
+    localStorage.setItem('centric_tech_id', val); 
+    document.getElementById('displayTechId').innerHTML = toProperCase(val) + ' <i class="bi bi-pencil-fill ms-1 opacity-50"></i>'; 
+    closeModal(); 
+    renderTechTabs(); renderAppointments(); renderHistory(); toggleAdminFeatures();
+  }
+
+  function toggleAdminFeatures() { 
+    var isMgr = isManager();
+    var paneAdmin = document.getElementById('pane-admin');
+    var fab = document.getElementById('fabFeedback');
+    var fabIcon = fab ? fab.querySelector('i') : null;
+
+    function restoreFabDefault() { if (fab && fabIcon) { fab.onclick = openFeedbackModal; fab.title = "Submit Beta Feedback"; if (fab.classList.contains('btn-primary')) fab.classList.replace('btn-primary', 'btn-warning'); fabIcon.className = 'bi bi-chat-square-text-fill fs-4'; } }
+
+    if (isMgr) {
+      if (paneAdmin) { paneAdmin.style.display = ''; adminUnlocked = false; var lockScreen = document.getElementById('adminLockScreen'); var contentScreen = document.getElementById('adminContent'); if(lockScreen) lockScreen.style.display = 'block'; if(contentScreen) contentScreen.style.display = 'none'; renderFeedback(); }
+      if (window.innerWidth <= 1024) { if (fab && fabIcon) { fab.onclick = function() { switchPane('pane-admin', null); }; fab.title = "Open Admin Panel"; if (fab.classList.contains('btn-warning')) fab.classList.replace('btn-warning', 'btn-primary'); fabIcon.className = 'bi bi-shield-lock fs-4'; } } else { restoreFabDefault(); }
+    } else { if (paneAdmin) paneAdmin.style.display = 'none'; restoreFabDefault(); }
+  }
+
+  var adminUnlocked = false;
+  function unlockAdmin() {
+    var pwd = document.getElementById('adminPwdInput').value;
+    var techId = getTechId();
+    var emp = APP_DATA.roster ? APP_DATA.roster.find(function(e) { return (e.short ? e.short : e.name) === techId || e.name === techId; }) : null;
+    var expectedPwd = (emp && emp.password) ? emp.password : '1234';
+    if (pwd === expectedPwd) { adminUnlocked = true; document.getElementById('adminLockScreen').style.display = 'none'; document.getElementById('adminContent').style.display = 'block'; document.getElementById('adminPwdInput').value = ''; showNewFeedbackLog(); } 
+    else { alert('Incorrect password.'); }
+  }
+
+  function isManager() {
+    var id = getTechId();
+    var emp = APP_DATA.roster ? APP_DATA.roster.find(function(e) { return (e.short ? e.short : e.name) === id || e.name === id; }) : null;
+    if (emp && emp.role) { var r = emp.role.toLowerCase(); return r.includes('admin') || r.includes('manager'); }
+    return false;
+  }
+  function getTechId() { return localStorage.getItem('centric_tech_id') || 'Unknown'; }
+  function getTechEmail() { var id = getTechId(); var emp = APP_DATA.roster ? APP_DATA.roster.find(function(e) { return (e.short ? e.short : e.name) === id; }) : null; return emp && emp.email ? emp.email : ''; }
+  function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); }
+</script>
